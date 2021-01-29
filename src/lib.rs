@@ -21,7 +21,7 @@ use hal::gpio;
 pub mod clocks;
 pub use clocks::configure as configure_clocks;
 pub mod led;
-// TODO pub mod pin;
+pub mod pin;
 pub mod usart;
 
 // TODO proper logging with compile-time feature selection of: semihosting/itm/rtt
@@ -103,35 +103,9 @@ impl<'a> Board<'a> {
                 USER: led::LedUser::new(gpioc.pc7)
             },
             pins: pin::Pins {
-                SEED_00: gpiob.pb12,
-                SEED_01: gpioc.pc11,
-                SEED_02: gpioc.pc10,
-                SEED_03: gpioc.pc9,
-                SEED_04: gpioc.pc8,
-                SEED_05: gpiod.pd2,
-                SEED_06: gpioc.pc12,
-                SEED_07: gpiog.pg10,
-                SEED_08: gpiog.pg11,
-                SEED_09: gpiob.pb4,
-                SEED_10: gpiob.pb5,
-                SEED_11: gpiob.pb8,
-                SEED_12: gpiob.pb9,
-                SEED_13: gpiob.pb6,
-                SEED_14: gpiob.pb7,
-                SEED_15: gpioc.pc0,
-                SEED_16: gpioa.pa3,
-                SEED_17: gpiob.pb1,
-                SEED_18: gpioa.pa7,
-                SEED_19: gpioa.pa6,
-                SEED_20: gpioc.pc1,
-                SEED_21: gpioc.pc4,
-                SEED_22: gpioa.pa5,
-                SEED_23: gpioa.pa4,
-                SEED_24: gpioa.pa1,
-                SEED_25: gpioa.pa0,
-                SEED_26: gpiod.pd11,
-                SEED_27: gpiog.pg9,
-                SEED_28: gpioa.pa2,
+                D0: gpiob.pb7,
+                D16: gpioc.pc6,
+                // TODO
             },
             USART1: usart1_interface,
 
