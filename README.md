@@ -1,4 +1,4 @@
-# daisy_bsp
+# NUCLEO-H745ZI
 
 Rust `no_std`, `embedded_hal` board support package for the [NUCLEO-H745ZI](https://www.st.com/en/evaluation-tools/nucleo-h745zi-q.html).
 
