@@ -107,19 +107,3 @@ required-features = []
 [[example]]
 name = "button"
 required-features = []
-
-[[example]]
-name = "audio_passthrough"
-required-features = []
-
-[[example]]
-name = "audio_testsignal"
-required-features = []
-
-[[example]]
-name = "audio_midi"
-required-features = ["uses_num"]
-
-[[example]]
-name = "serial"
-required-features = []
