@@ -29,8 +29,7 @@ targets = ["thumbv7em-none-eabihf"]
 
 [dependencies]
 cortex-m = "^0.6.2"
-cortex-m-rt = { version = "^0.6.12", features = ["device"] }
-cty = "0.2.1"
+cortex-m-rt = { version = "^0.6.12" }
 
 # move to dev dependencies
 panic-semihosting = { version = "0.5.3" }
@@ -41,8 +40,9 @@ cortex-m-semihosting = { version = "0.3.5" }
 [dependencies.stm32h7xx-hal]
 features = [ "stm32h747cm7", "rt" ]
 version = "0.8.0"
-
-
+#git = "https://github.com/antoinevg/stm32h7xx-hal.git"
+#branch = "antoinevg/nucleo-h745zi"
+#path = "../forks/stm32h7xx-hal.git" # Do manually: git checkout antoinevg/nucleo-h745zi
 
 
 # - optional dependencies used by examples
