@@ -8,3 +8,8 @@ pub struct Pins {
     pub D16: gpio::gpioc::PC6<gpio::Analog>,  // PIN_01,
     // TODO
 }
+
+
+// LD1: green,  PB0 or PB5
+// LD2: yellow, PE1
+// LD3: red,    PB14
