@@ -38,14 +38,22 @@ cortex-m-semihosting = { version = "0.3.5" }
 # - select version of stm32h7xx-hal to use
 
 [dependencies.stm32h7xx-hal]
-features = [ "stm32h747cm7", "rt" ]
-version = "0.8.0"
+features = [ "stm32h747cm7", "rt", "ethernet" ]
+#version = "0.8.0"
 #git = "https://github.com/antoinevg/stm32h7xx-hal.git"
 #branch = "antoinevg/nucleo-h745zi"
+git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
+branch = "master"
 #path = "../forks/stm32h7xx-hal.git" # Do manually: git checkout antoinevg/nucleo-h745zi
 
 
 # - optional dependencies used by examples
+
+[dependencies.smoltcp]
+version = "0.7.0"
+default-features = false
+features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw"]
+#optional = true
 
 [dependencies.num]
 version = "0.3.1"
