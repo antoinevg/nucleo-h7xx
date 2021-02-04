@@ -1,8 +1,12 @@
-/// Simple ethernet example that will respond to icmp pings on
-/// 192.168.20.99
-
 #![no_main]
 #![no_std]
+
+/// Simple ethernet example that will respond to icmp pings on
+/// `IP_LOCAL` and perioducally send a udp packet to
+/// `IP_REMOTE:IP_REMOTE_PORT`
+///
+/// Also see: https://github.com/stm32-rs/stm32h7xx-hal/blob/master/examples/ethernet-rtic-stm32h747i-disco.rs
+///           https://github.com/adamgreig/stm32f4-smoltcp-demo
 
 use panic_semihosting as _;
 use cortex_m_semihosting::hprintln;
@@ -27,13 +31,20 @@ use smoltcp::iface::{
     Route, Routes,
 };
 use smoltcp::socket::{SocketSet, SocketSetItem};
+use smoltcp::socket::{UdpSocket, UdpSocketBuffer, UdpPacketMetadata};
+use smoltcp::storage::PacketMetadata;
 use smoltcp::time::Instant;
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr};
+use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
 
 
 // - global constants ---------------------------------------------------------
 
-const MAC_ADDRESS: [u8; 6] = [0x02, 0x00, 0x11, 0x22, 0x33, 0x44];
+const MAC_LOCAL: [u8; 6] = [0x02, 0x00, 0x11, 0x22, 0x33, 0x44];
+const IP_LOCAL: [u8; 4] = [ 192, 168, 20, 99 ];
+const IP_REMOTE: [u8; 4] = [ 192, 168, 20, 114 ];
+const IP_REMOTE_PORT: u16 = 34254;
+
+const MAX_UDP_PACKET_SIZE: usize = 576;
 
 
 // - global static state ------------------------------------------------------
@@ -41,7 +52,7 @@ const MAC_ADDRESS: [u8; 6] = [0x02, 0x00, 0x11, 0x22, 0x33, 0x44];
 static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
 static mut ETHERNET: Option<Net> = None;
-static mut ETHERNET_STATIC_STORAGE: NetStorageStatic = NetStorageStatic::new();
+static mut ETHERNET_STATIC_STORAGE: NetStaticStorage = NetStaticStorage::new();
 
 #[link_section = ".sram3.eth"]
 static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing = ethernet::DesRing::new();
@@ -71,15 +82,22 @@ fn main() -> ! {
 
     cp.SCB.invalidate_icache();
     cp.SCB.enable_icache();
-    // cp.SCB.enable_dcache(&mut cp.CPUID); // TODO: ETH DMA coherence issues
     cp.DWT.enable_cycle_counter();
+
+    // - leds -----------------------------------------------------------------
+
+    let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
+    let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
+
+    let mut led_user = gpiob.pb14.into_push_pull_output();  // LED3, red
+    let mut led_link = gpioe.pe1.into_push_pull_output();   // LED2, yellow
+    led_user.set_high().ok();
+    led_link.set_low().ok();
 
     // - ethernet -------------------------------------------------------------
 
     let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
-    let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
     let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
-    let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
     let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
 
     let _rmii_ref_clk = gpioa.pa1.into_alternate_af11().set_speed(VeryHigh);
@@ -97,7 +115,7 @@ fn main() -> ! {
     assert_eq!(ccdr.clocks.pclk2().0, 100_000_000); // PCLK 100MHz
     assert_eq!(ccdr.clocks.pclk4().0, 100_000_000); // PCLK 100MHz
 
-    let mac_addr = smoltcp::wire::EthernetAddress::from_bytes(&MAC_ADDRESS);
+    let mac_addr = EthernetAddress::from_bytes(&MAC_LOCAL);
     let (eth_dma, eth_mac) = unsafe {
         ethernet::new_unchecked(
             dp.ETHERNET_MAC,
@@ -110,12 +128,13 @@ fn main() -> ! {
         )
     };
 
-    // initialise PHY
+    // initialise PHY and wait for link to come up
     let mut lan8742a = ethernet::phy::LAN8742A::new(eth_mac.set_phy_addr(0));
     lan8742a.phy_reset();
     lan8742a.phy_init();
+    while !lan8742a.poll_link() { }
 
-    // eth_dma should not be used until the PHY reports the link is up
+    // enable ethernet interrupt
     unsafe {
         ethernet::enable_interrupt();
         cp.NVIC.set_priority(pac::Interrupt::ETH, 196); // mid prio
@@ -127,42 +146,55 @@ fn main() -> ! {
         ETHERNET = Some(Net::new(&mut ETHERNET_STATIC_STORAGE, eth_dma, mac_addr));
     }
 
-    // leds
-    let mut led_user = gpiob.pb14.into_push_pull_output();  // LED3, red
-    let mut led_link = gpioe.pe1.into_push_pull_output();   // LED2, yellow
-    led_user.set_high().ok();
-    led_link.set_low().ok();
+    // - udp socket -----------------------------------------------------------
 
+    let store = unsafe { &mut ETHERNET_STATIC_STORAGE };
+    let udp_rx_buffer = UdpSocketBuffer::new(&mut store.udp_rx_metadata[..],
+                                             &mut store.udp_rx_buffer_storage[..]);
+    let udp_tx_buffer = UdpSocketBuffer::new(&mut store.udp_tx_metadata[..],
+                                             &mut store.udp_tx_buffer_storage[..]);
+    let mut udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
 
-    // - start timer ----------------------------------------------------------
-
-    let delay = cp.SYST.delay(ccdr.clocks);
-    systick_init(&mut delay.free(), ccdr.clocks);
-    unsafe {
-        cp.SCB.shpr[15 - 4].write(128); // systick exception priority
+    let endpoint_local = IpEndpoint::new(Ipv4Address::from_bytes(&IP_LOCAL).into(), 12345);
+    let endpoint_remote = IpEndpoint::new(Ipv4Address::from_bytes(&IP_REMOTE).into(), IP_REMOTE_PORT);
+    if !udp_socket.is_open() {
+        udp_socket.bind(endpoint_local).unwrap();
     }
-    //systick_init(&mut cp.SYST, ccdr.clocks);  // 1ms tick
+
+    let udp_socket_handle = unsafe { ETHERNET.as_mut().unwrap().sockets.add(udp_socket) };
+
+
+    // - timer ----------------------------------------------------------------
+
+    systick_init(&mut cp.SYST, &ccdr.clocks);  // 1ms tick
+    let mut delay = cp.SYST.delay(ccdr.clocks);
+
 
     // - main loop ------------------------------------------------------------
 
+    led_user.set_low().unwrap();
+
     loop {
         match lan8742a.poll_link() {
-            true => {
-                led_link.set_high().unwrap();
-                led_user.set_low().unwrap();
-            },
-            _ => {
-                led_link.set_low().unwrap();
-                led_user.set_high().unwrap();
-            }
+            true => led_link.set_high().unwrap(),
+            _    => led_link.set_low().unwrap(),
         }
+
+        // send a packet
+        let mut udp_socket =  unsafe { ETHERNET.as_mut().unwrap().sockets.get::<UdpSocket>(udp_socket_handle) };
+        match udp_socket.send_slice("hello there\n".as_bytes(), endpoint_remote) {
+            Ok(()) => (),
+            Err(e) => hprintln!("oops: {:?}", e).unwrap(),
+        }
+
+        delay.delay_ms(2000_u16);
     }
 }
 
 
 // - systick ------------------------------------------------------------------
 
-fn systick_init(syst: &mut pac::SYST, clocks: CoreClocks) {
+fn systick_init(syst: &mut pac::SYST, clocks: &CoreClocks) {
     let c_ck_mhz = clocks.c_ck().0 / 1_000_000;
     let syst_calib = 0x3E8;
     syst.set_clock_source(cortex_m::peripheral::syst::SystClkSource::Core);
@@ -189,37 +221,40 @@ fn SysTick() {
     ATOMIC_TIME.fetch_add(1, Ordering::Relaxed);
 }
 
-#[exception]
-fn HardFault(ef: &cortex_m_rt::ExceptionFrame) -> ! {
-    panic!("HardFault at {:#?}", ef);
-}
 
-#[exception]
-fn DefaultHandler(irqn: i16) {
-    panic!("Unhandled exception (IRQn = {})", irqn);
-}
+// - NetStaticStorage ---------------------------------------------------------
 
-
-// - Net ----------------------------------------------------------------------
-
-pub struct NetStorageStatic<'a> {
+pub struct NetStaticStorage<'a> {
     ip_addrs: [IpCidr; 1],
     socket_set_entries: [Option<SocketSetItem<'a>>; 8],
     neighbor_cache_storage: [Option<(IpAddress, Neighbor)>; 8],
     routes_storage: [Option<(IpCidr, Route)>; 1],
+
+    // network buffers
+    udp_rx_metadata: [PacketMetadata<IpEndpoint>; 1],
+    udp_tx_metadata: [PacketMetadata<IpEndpoint>; 1],
+    udp_rx_buffer_storage: [u8; MAX_UDP_PACKET_SIZE],
+    udp_tx_buffer_storage: [u8; MAX_UDP_PACKET_SIZE],
 }
 
-impl<'a> NetStorageStatic<'a> {
+impl<'a> NetStaticStorage<'a> {
     pub const fn new() -> Self {
-        NetStorageStatic {
+        NetStaticStorage {
             ip_addrs: [IpCidr::Ipv6(Ipv6Cidr::SOLICITED_NODE_PREFIX)],
             socket_set_entries: [None, None, None, None, None, None, None, None],
             neighbor_cache_storage: [None; 8],
             routes_storage: [None; 1],
+
+            udp_rx_metadata: [UdpPacketMetadata::EMPTY],
+            udp_tx_metadata: [UdpPacketMetadata::EMPTY],
+            udp_rx_buffer_storage: [0u8; MAX_UDP_PACKET_SIZE],
+            udp_tx_buffer_storage: [0u8; MAX_UDP_PACKET_SIZE],
         }
     }
 }
 
+
+// - Net ----------------------------------------------------------------------
 
 pub struct Net<'a> {
     interface: EthernetInterface<'a, ethernet::EthernetDMA<'a>>,
@@ -228,15 +263,14 @@ pub struct Net<'a> {
 
 impl<'a> Net<'a> {
     pub fn new(
-        store: &'static mut NetStorageStatic<'a>,
+        store: &'static mut NetStaticStorage<'a>,
         ethdev: ethernet::EthernetDMA<'a>,
         ethernet_addr: EthernetAddress,
     ) -> Self {
-        store.ip_addrs = [IpCidr::new(IpAddress::v4(192, 168, 20, 99), 0)];
+        store.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(&IP_LOCAL).into(), 0)];
 
         let neighbor_cache = NeighborCache::new(&mut store.neighbor_cache_storage[..]);
         let routes = Routes::new(&mut store.routes_storage[..]);
-
         let interface = EthernetInterfaceBuilder::new(ethdev)
             .ethernet_addr(ethernet_addr)
             .neighbor_cache(neighbor_cache)
@@ -245,19 +279,22 @@ impl<'a> Net<'a> {
             .finalize();
         let sockets = SocketSet::new(&mut store.socket_set_entries[..]);
 
-        return Net { interface, sockets };
+        Net {
+            interface,
+            sockets
+        }
     }
 
-    /// Polls on the ethernet interface. You should refer to the smoltcp
-    /// documentation for poll() to understand how to call poll efficiently
+    // poll ethernet interface
     pub fn poll(&mut self, now: i64) {
         let timestamp = Instant::from_millis(now);
 
-        self.interface
-            .poll(&mut self.sockets, timestamp)
-            .map(|_| ()) // ?
-            .unwrap_or_else(|e| {
-                hprintln!("Poll: {:?}", e).unwrap()
-            });
+        match self.interface.poll(&mut self.sockets, timestamp) {
+            Ok(_) => (),
+            Err(smoltcp::Error::Exhausted) => (),
+            Err(smoltcp::Error::Unrecognized) => (),
+            Err(e) => hprintln!("Error polling: {:?}", e).unwrap(),
+        };
+
     }
 }
