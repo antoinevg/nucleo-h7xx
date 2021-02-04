@@ -34,6 +34,7 @@ cortex-m-rt = { version = "^0.6.12" }
 # move to dev dependencies
 panic-semihosting = { version = "0.5.3" }
 cortex-m-semihosting = { version = "0.3.5" }
+nb = "1.0.0"
 
 # - select version of stm32h7xx-hal to use
 
@@ -52,7 +53,7 @@ branch = "master"
 [dependencies.smoltcp]
 version = "0.7.0"
 default-features = false
-features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw"]
+features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
 #optional = true
 
 [dependencies.num]
