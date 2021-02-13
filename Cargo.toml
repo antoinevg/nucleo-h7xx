@@ -30,6 +30,7 @@ targets = ["thumbv7em-none-eabihf"]
 [dependencies]
 cortex-m = "^0.6.2"
 cortex-m-rt = { version = "^0.6.12" }
+heapless = { version="0.5.6", default_features=true }
 
 # move to dev dependencies
 panic-semihosting = { version = "0.5.3" }
@@ -47,11 +48,11 @@ git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
 branch = "master"
 #path = "../forks/stm32h7xx-hal.git" # Do manually: git checkout antoinevg/nucleo-h745zi
 
-
 # - optional dependencies used by examples
 
 [dependencies.smoltcp]
 version = "0.7.0"
+#path = "../mirrors/smoltcp.git"
 default-features = false
 features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
 #optional = true
@@ -77,6 +78,8 @@ optional = true
 
 [dev-dependencies]
 
+jacktrip = { path="../jacktrip_rs.git", default-features = false }
+
 
 # - features ------------------------------------------------------------------
 
@@ -90,9 +93,9 @@ uses_num = [ "num", "num-derive", "num-traits" ]
 [profile.dev]
 debug = true
 incremental = false
-opt-level = "s" # optimize for binary size
+#opt-level = "s" # optimize for binary size
 #opt-level = 1
-#opt-level = 0
+opt-level = 0
 
 [profile.release]
 debug = true

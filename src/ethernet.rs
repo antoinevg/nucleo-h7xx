@@ -28,6 +28,8 @@ use smoltcp::storage::PacketMetadata;
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
 
+use heapless::Vec;
+
 
 // - global constants ---------------------------------------------------------
 
@@ -36,58 +38,69 @@ pub const MAX_UDP_PACKET_SIZE: usize = 576;
 
 // - global static state ------------------------------------------------------
 
-static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
-
-// TODO no pub
-pub static mut ETHERNET_INTERFACE: Option<Interface> = None;
-pub static mut ETHERNET_STATIC_STORAGE: StaticStorage = StaticStorage::new();
-
 #[link_section = ".sram3.eth"]
 pub static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing = ethernet::DesRing::new();
+
+pub static mut ETHERNET_INTERFACE: Option<Interface> = None;
+static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
 
 // - statically allocated storage ---------------------------------------------
 
-pub struct StaticStorage<'a> {
+pub struct Storage<'a> {
     ip_addrs: [IpCidr; 1],
     socket_set_entries: [Option<SocketSetItem<'a>>; 8],
     neighbor_cache_storage: [Option<(IpAddress, Neighbor)>; 8],
     routes_storage: [Option<(IpCidr, Route)>; 1],
-
-    // network buffers
-    pub udp_rx_metadata: [PacketMetadata<IpEndpoint>; 1],
-    pub udp_tx_metadata: [PacketMetadata<IpEndpoint>; 1],
-    pub udp_rx_buffer_storage: [u8; MAX_UDP_PACKET_SIZE],
-    pub udp_tx_buffer_storage: [u8; MAX_UDP_PACKET_SIZE],
 }
 
-impl<'a> StaticStorage<'a> {
+impl<'a> Storage<'a> {
     pub const fn new() -> Self {
-        StaticStorage {
+        Storage {
             ip_addrs: [IpCidr::Ipv6(Ipv6Cidr::SOLICITED_NODE_PREFIX)],
             socket_set_entries: [None, None, None, None, None, None, None, None],
             neighbor_cache_storage: [None; 8],
             routes_storage: [None; 1],
-
-            udp_rx_metadata: [UdpPacketMetadata::EMPTY],
-            udp_tx_metadata: [UdpPacketMetadata::EMPTY],
-            udp_rx_buffer_storage: [0u8; MAX_UDP_PACKET_SIZE],
-            udp_tx_buffer_storage: [0u8; MAX_UDP_PACKET_SIZE],
         }
     }
 }
 
+#[derive(Debug)]
+pub struct UdpSocketStorage <'a> {
+    socket_handle: Option<SocketHandle>,
+    udp_rx_metadata: [PacketMetadata<IpEndpoint>; 1],
+    udp_tx_metadata: [PacketMetadata<IpEndpoint>; 1],
+    udp_rx_buffer: [u8; MAX_UDP_PACKET_SIZE],
+    udp_tx_buffer: [u8; MAX_UDP_PACKET_SIZE],
+    _marker: core::marker::PhantomData<&'a ()>
+}
+
+impl<'a> UdpSocketStorage<'a> {
+    fn new() -> Self {
+        Self {
+            socket_handle: None,
+            udp_rx_metadata: [UdpPacketMetadata::EMPTY],
+            udp_tx_metadata: [UdpPacketMetadata::EMPTY],
+            udp_rx_buffer: [0u8; MAX_UDP_PACKET_SIZE],
+            udp_tx_buffer: [0u8; MAX_UDP_PACKET_SIZE],
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
 
 
 // - ethernet::Interface ------------------------------------------------------
 
 pub struct Interface<'a> {
     pins: Pins,
-    //storage: &'a mut StaticStorage<'a>,
+
+    storage: Storage<'a>,
+    sockets_storage: Vec<UdpSocketStorage<'a>, heapless::consts::U8>,
+
     lan8742a: Option<hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>>,
     interface: Option<EthernetInterface<'a, ethernet::EthernetDMA<'a>>>,
-    pub sockets: Option<SocketSet<'static>>,
-    _marker: core::marker::PhantomData<&'a ()>
+    pub sockets: Option<SocketSet<'a>>,
+    _marker: core::marker::PhantomData<&'a ()>,
 }
 
 
@@ -95,20 +108,37 @@ impl<'a> Interface<'a> {
     pub fn new(pins: Pins) -> Self {
         Self {
             pins: pins,
-            //storage: storage,
+            storage: Storage::new(),
+            sockets_storage: Vec(heapless::i::Vec::new()),
             lan8742a: None,
             interface: None,
             sockets: None,
-            _marker: core::marker::PhantomData
+            _marker: core::marker::PhantomData,
         }
     }
 
-    pub fn up(&mut self,
+    pub fn new_udp_socket(&'a mut self) -> SocketHandle {
+        self.sockets_storage.push(UdpSocketStorage::new()).unwrap(); // TODO handle result
+        let len = self.sockets_storage.len();
+        let socket_storage = &mut self.sockets_storage[len - 1];
+
+        let mut udp_socket = UdpSocket::new(
+            UdpSocketBuffer::new(&mut socket_storage.udp_rx_metadata[..],
+                                 &mut socket_storage.udp_rx_buffer[..]),
+            UdpSocketBuffer::new(&mut socket_storage.udp_tx_metadata[..],
+                                 &mut socket_storage.udp_tx_buffer[..]),
+        );
+
+        let socket_handle = self.sockets.as_mut().unwrap().add(udp_socket);
+        socket_handle
+    }
+
+    pub fn up(&'a mut self,
               mac_address: &[u8; 6],
               ip_address: &[u8; 4],
               eth1mac: hal::rcc::rec::Eth1Mac,
-              ccdr_clocks: &hal::rcc::CoreClocks,
-              ) -> Result<(), u32> {
+              ccdr_clocks: &hal::rcc::CoreClocks) -> Result<(), u32> {
+
         assert_eq!(ccdr_clocks.hclk().0,  200_000_000); // HCLK 200MHz
         assert_eq!(ccdr_clocks.pclk1().0, 100_000_000); // PCLK 100MHz
         assert_eq!(ccdr_clocks.pclk2().0, 100_000_000); // PCLK 100MHz
@@ -129,7 +159,8 @@ impl<'a> Interface<'a> {
         };
 
         // initialise PHY and wait for link to come up
-        let mut lan8742a: hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC> = ethernet::phy::LAN8742A::new(eth_mac.set_phy_addr(0));
+        let mut lan8742a: hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>
+            = ethernet::phy::LAN8742A::new(eth_mac.set_phy_addr(0));
         lan8742a.phy_reset();
         lan8742a.phy_init();
         while !lan8742a.poll_link() { } // TODO expose as method
@@ -142,21 +173,19 @@ impl<'a> Interface<'a> {
             cortex_m::peripheral::NVIC::unmask(pac::Interrupt::ETH);
         }
 
-        // ----------------------------------------
+        // --------------------------------------------------------------------
 
-        let storage = unsafe {  &mut ETHERNET_STATIC_STORAGE };
+        self.storage.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
 
-        storage.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
-
-        let neighbor_cache = NeighborCache::new(&mut storage.neighbor_cache_storage[..]);
-        let routes = Routes::new(&mut storage.routes_storage[..]);
+        let neighbor_cache = NeighborCache::new(&mut self.storage.neighbor_cache_storage[..]);
+        let routes = Routes::new(&mut self.storage.routes_storage[..]);
         let interface = EthernetInterfaceBuilder::new(eth_dma)
             .ethernet_addr(ethernet_address)
             .neighbor_cache(neighbor_cache)
-            .ip_addrs(&mut storage.ip_addrs[..])
+            .ip_addrs(&mut self.storage.ip_addrs[..])
             .routes(routes)
             .finalize();
-        let sockets = SocketSet::new(&mut storage.socket_set_entries[..]);
+        let sockets = SocketSet::new(&mut self.storage.socket_set_entries[..]);
 
         self.lan8742a = Some(lan8742a);
         self.interface = Some(interface);
@@ -165,11 +194,9 @@ impl<'a> Interface<'a> {
         Ok(())
     }
 
-
     pub fn poll_link(&mut self) -> bool {
         self.lan8742a.as_mut().unwrap().poll_link()
     }
-
 
     // poll ethernet interface
     pub fn poll(&mut self, now: i64) {
@@ -198,12 +225,12 @@ use hal::gpio::gpioc;
 use hal::gpio::gpiog;
 
 pub struct Pins {
-    pub ref_clk: gpioa::PA1<AlternateFunction11>, // REFCLK,   // RmiiRefClk
-    pub md_io:   gpioa::PA2<AlternateFunction11>, // IO,       // MDIO
-    pub md_clk:  gpioc::PC1<AlternateFunction11>, // CLK,      // MDC
-    pub crs:     gpioa::PA7<AlternateFunction11>, // CRS,      // RmiiCrsDv
-    pub rx_d0:   gpioc::PC4<AlternateFunction11>, // RXD0,     // RmiiRxD0
-    pub rx_d1:   gpioc::PC5<AlternateFunction11>, // RXD1,     // RmiiRxD0
+    pub ref_clk: gpioa::PA1 <AlternateFunction11>, // REFCLK,   // RmiiRefClk
+    pub md_io:   gpioa::PA2 <AlternateFunction11>, // IO,       // MDIO
+    pub md_clk:  gpioc::PC1 <AlternateFunction11>, // CLK,      // MDC
+    pub crs:     gpioa::PA7 <AlternateFunction11>, // CRS,      // RmiiCrsDv
+    pub rx_d0:   gpioc::PC4 <AlternateFunction11>, // RXD0,     // RmiiRxD0
+    pub rx_d1:   gpioc::PC5 <AlternateFunction11>, // RXD1,     // RmiiRxD0
     pub tx_en:   gpiog::PG11<AlternateFunction11>, // TXEN,     // RmiiTxEN
     pub tx_d0:   gpiog::PG13<AlternateFunction11>, // TXD0,     // RmiiTxD0
     pub tx_d1:   gpiob::PB13<AlternateFunction11>, // TXD1,     // RmiiTxD1

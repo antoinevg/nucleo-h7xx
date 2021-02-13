@@ -21,6 +21,7 @@ use hal::gpio;
 pub mod clocks;
 pub use clocks::configure as configure_clocks;
 pub mod led;
+pub mod ethernet;
 pub mod pin;
 pub mod usart;
 
