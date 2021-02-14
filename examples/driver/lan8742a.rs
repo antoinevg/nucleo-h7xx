@@ -36,7 +36,7 @@ pub struct Socket <'a> {
 //impl SocketDriver for Socket {
 impl<'a> SocketDriver for Socket<'a> {
     fn bind(address: &str, port: u16) -> Result<Socket<'a>> {
-        hprintln!("driver::lan8742a::Socket::bind -> {}:{}", address, port).unwrap();
+        //hprintln!("driver::lan8742a::Socket::bind -> {}:{}", address, port).unwrap();
 
         let ip_address = parse_ip_address(address, [0_u8; 4])?;
         let endpoint = IpEndpoint::new(Ipv4Address::from_bytes(&ip_address).into(), port);
@@ -75,11 +75,23 @@ impl<'a> SocketDriver for Socket<'a> {
         let ethernet_interface = unsafe { nucleo::ethernet::ETHERNET_INTERFACE.as_mut().unwrap() };
         let mut udp_socket = ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(self.socket_handle);
 
-        //match udp_socket.send_slice(buffer, self.remote) {
-        match udp_socket.send_slice("hello there\n".as_bytes(), self.remote) {
+        if !udp_socket.can_send() {
+            //hprintln!("driver::lan8742a::Socket::send error: can't send").unwrap();
+        }
+
+        //match udp_socket.send_slice("hello there\n".as_bytes(), self.remote) {
+        match udp_socket.send_slice(buffer, self.remote) {
             Ok(()) => (),
             Err(smoltcp::Error::Exhausted) => (), // TODO figure out if this is a problem
             Err(e) => hprintln!("driver::lan8742a::Socket::send error: {:?}", e).unwrap(),
+        }
+
+        let mut receive_buffer = [0_u8; jacktrip::packet::PACKET_SIZE];
+        if udp_socket.can_recv() {
+            match udp_socket.recv_slice(&mut receive_buffer) {
+                Ok(_bytes_received) => (),
+                Err(e) => hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap(),
+            }
         }
 
         Ok(buffer.len())
