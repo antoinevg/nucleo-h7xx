@@ -122,7 +122,7 @@ impl<'a> Interface<'a> {
         let len = self.sockets_storage.len();
         let socket_storage = &mut self.sockets_storage[len - 1];
 
-        let mut udp_socket = UdpSocket::new(
+        let udp_socket = UdpSocket::new(
             UdpSocketBuffer::new(&mut socket_storage.udp_rx_metadata[..],
                                  &mut socket_storage.udp_rx_buffer[..]),
             UdpSocketBuffer::new(&mut socket_storage.udp_tx_metadata[..],
@@ -138,6 +138,12 @@ impl<'a> Interface<'a> {
               ip_address: &[u8; 4],
               eth1mac: hal::rcc::rec::Eth1Mac,
               ccdr_clocks: &hal::rcc::CoreClocks) -> Result<(), u32> {
+
+        /*hprintln!("hclk: {}  pclk1: {}  pclk2: {}  pclk4: {}",
+                  ccdr_clocks.hclk().0,
+                  ccdr_clocks.pclk1().0,
+                  ccdr_clocks.pclk2().0,
+                  ccdr_clocks.pclk4().0).unwrap();*/
 
         assert_eq!(ccdr_clocks.hclk().0,  200_000_000); // HCLK 200MHz
         assert_eq!(ccdr_clocks.pclk1().0, 100_000_000); // PCLK 100MHz
