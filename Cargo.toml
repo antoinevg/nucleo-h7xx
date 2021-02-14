@@ -99,7 +99,8 @@ opt-level = 0
 
 [profile.release]
 debug = true
-opt-level = "s" #  optimize for binary size
+#opt-level = "s" #  optimize for binary size
+opt-level = 3
 
 
 # - examples ------------------------------------------------------------------
