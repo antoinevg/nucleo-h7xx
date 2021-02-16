@@ -10,7 +10,7 @@ MEMORY
     SRAM3   (RW)  : ORIGIN = 0x30040000, LENGTH = 32K  /* 32-bit AHB bus matrix, D2 domain */
     SRAM4   (RW)  : ORIGIN = 0x38000000, LENGTH = 64K  /* 32-bit AHB bus matrix, D3 domain */
     BSRAM         : ORIGIN = 0x38800000, LENGTH = 4K   /* 32-bit AHB bus matrix, D3 domain */
-    AXISRAM (RW)  : ORIGIN = 0x24000000, LENGTH = 512K /* 64-bit AXI bus matrix, D1 domain */
+    AXISRAM (RWX) : ORIGIN = 0x24000000, LENGTH = 512K /* 64-bit AXI bus matrix, D1 domain */
     DTCMRAM (RWX) : ORIGIN = 0x20000000, LENGTH = 128K /* 64-bit AXI bus matrix, D1 domain */
     FLASH2  (RX)  : ORIGIN = 0x08100000, LENGTH = 1M   /* 64-bit AXI bus matrix, D1 domain */
     FLASH1  (RX)  : ORIGIN = 0x08000000, LENGTH = 1M   /* 64-bit AXI bus matrix, D1 domain */
@@ -23,14 +23,14 @@ REGION_ALIAS(FLASH, FLASH1);
 
 SECTIONS
 {
-    .itcmram : ALIGN(8) {
+    .itcmram : ALIGN(4) {
         *(.itcmram .itcmram.*);
-        . = ALIGN(8);
+        . = ALIGN(4);
     } > ITCMRAM
 
-    .dtcmram : ALIGN(8) {
+    .dtcmram : ALIGN(4) {
         *(.dtcmram .dtcmram.*);
-        . = ALIGN(8);
+        . = ALIGN(4);
     } > DTCMRAM
 
     .axisram : ALIGN(8) {
@@ -51,4 +51,5 @@ SECTIONS
         *(.sram4 .sram4.*);
         . = ALIGN(4);
      } > SRAM4
+
 } INSERT AFTER .bss;
