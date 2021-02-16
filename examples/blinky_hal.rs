@@ -39,9 +39,6 @@ fn main() -> ! {
         loop {
             led_user.toggle().unwrap();
             asm::delay(480_000_000);
-
-            led_user.toggle().unwrap();
-            asm::delay(480_000_000);
         }
     }
 }
