@@ -41,11 +41,11 @@ nb = "1.0.0"
 
 [dependencies.stm32h7xx-hal]
 features = [ "stm32h747cm7", "rt", "ethernet" ]
-#version = "0.8.0"
+version = "0.8.0"
+#git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
+#branch = "master"
 #git = "https://github.com/antoinevg/stm32h7xx-hal.git"
 #branch = "antoinevg/nucleo-h745zi"
-git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
-branch = "master"
 #path = "../forks/stm32h7xx-hal.git" # Do manually: git checkout antoinevg/nucleo-h745zi
 
 # - optional dependencies used by examples
@@ -77,7 +77,6 @@ optional = true
 # - dev dependencies ----------------------------------------------------------
 
 [dev-dependencies]
-
 jacktrip = { path="../jacktrip_rs.git", default-features = false }
 
 
@@ -91,16 +90,18 @@ uses_num = [ "num", "num-derive", "num-traits" ]
 # - profiles ------------------------------------------------------------------
 
 [profile.dev]
-debug = true
-incremental = false
+#opt-level = 1  # default: 0
 #opt-level = "s" # optimize for binary size
-#opt-level = 1
-opt-level = 0
+#debug = true              # default: true
+#debug-assertions = false  # default: true
+#overflow-checks = false   # default: true
+#lto = "off"               # default: false
+#panic = "unwind"          # default: "unwind"
+#incremental = false       # default: true
 
 [profile.release]
 debug = true
 #opt-level = "s" #  optimize for binary size
-opt-level = 3
 
 
 # - examples ------------------------------------------------------------------
