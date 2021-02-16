@@ -34,6 +34,7 @@ use heapless::Vec;
 // - global constants ---------------------------------------------------------
 
 pub const MAX_UDP_PACKET_SIZE: usize = 576;
+//pub const MAX_UDP_PACKET_SIZE: usize = 4096;
 
 
 // - global static state ------------------------------------------------------
@@ -41,6 +42,7 @@ pub const MAX_UDP_PACKET_SIZE: usize = 576;
 #[link_section = ".sram3.eth"]
 pub static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing = ethernet::DesRing::new();
 
+//#[link_section = ".axisram.eth"]
 pub static mut ETHERNET_INTERFACE: Option<Interface> = None;
 static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
@@ -109,7 +111,7 @@ impl<'a> Interface<'a> {
         Self {
             pins: pins,
             storage: Storage::new(),
-            sockets_storage: Vec(heapless::i::Vec::new()),
+            sockets_storage: Vec(heapless::i::Vec::new()), // TODO allocate on heap?
             lan8742a: None,
             interface: None,
             sockets: None,
@@ -210,10 +212,17 @@ impl<'a> Interface<'a> {
 
         // TODO handle Option properly
         match self.interface.as_mut().unwrap().poll(&mut self.sockets.as_mut().unwrap(), timestamp) {
-            Ok(_) => (),
+            Ok(result) => {
+                /*let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
+                if result { // packets were processed or emitted
+                    gpioe.bsrr.write(|w| w.br1().set_bit());
+                } else {
+                    gpioe.bsrr.write(|w| w.bs1().set_bit());
+                }*/
+            },
             Err(smoltcp::Error::Exhausted) => (),
             Err(smoltcp::Error::Unrecognized) => (),
-            Err(e) => hprintln!("Error polling: {:?}", e).unwrap(),
+            Err(e) => hprintln!("poll {:?}", e).unwrap(),
         };
     }
 }

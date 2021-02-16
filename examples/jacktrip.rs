@@ -61,6 +61,7 @@ const FS: f32 = 48_000.;
 
 // - global static state ------------------------------------------------------
 
+//#[link_section = ".axisram.eth"]
 // TODO move out of nucleo - static mut ETHERNET_INTERFACE: Option<ethernet::Interface> = None;
 static mut JACKTRIP_INTERFACE: Option<jacktrip::Interface<driver::lan8742a::Socket>> = None;
 
@@ -106,6 +107,7 @@ fn main() -> ! {
     let gpiod = dp.GPIOD.split(ccdr.peripheral.GPIOD);
     let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
     let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
+
 
     // - test points ---------------------------------------------------------
 
@@ -160,7 +162,8 @@ fn main() -> ! {
 
     // - jacktrip interface ---------------------------------------------------
 
-    let jacktrip_host = "192.168.20.114";
+    //let jacktrip_host = "192.168.20.114"; // chi
+    let jacktrip_host = "192.168.20.115"; // zeta
     let jacktrip_port = 4464;
     let mut jacktrip_interface = jacktrip::Interface::<driver::lan8742a::Socket>::new("192.168.20.99", 12345);
     match jacktrip_interface.connect(jacktrip_host, jacktrip_port) {
@@ -184,8 +187,8 @@ fn main() -> ! {
     //let delay = cp.SYST.delay(ccdr.clocks);
 
     // fs / num_frames = 48_000 / 64 = 750 Hz
-    let frequency = FS / num_frames as f32;
-    hprintln!("Timer frequency: {} / {} = {} Hz", FS, num_frames, frequency).unwrap();
+    let frequency = (FS / num_frames as f32); // - 1.;
+    //hprintln!("Timer frequency: {} / {} = {} Hz", FS, num_frames, frequency).unwrap();
     let mut timer = dp.TIM2.timer(u32::hz(frequency as u32), ccdr.peripheral.TIM2, &ccdr.clocks);
     timer.listen(hal::timer::Event::TimeOut);
     unsafe {
@@ -196,7 +199,7 @@ fn main() -> ! {
 
     // - main loop ------------------------------------------------------------
 
-    led_user.set_low().unwrap();
+    //led_user.set_low().unwrap();
 
     let gpiod = unsafe { pac::Peripherals::steal() }.GPIOD;
     //let mut toggle = false;
