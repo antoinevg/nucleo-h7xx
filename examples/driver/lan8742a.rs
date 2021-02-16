@@ -75,23 +75,45 @@ impl<'a> SocketDriver for Socket<'a> {
         let ethernet_interface = unsafe { nucleo::ethernet::ETHERNET_INTERFACE.as_mut().unwrap() };
         let mut udp_socket = ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(self.socket_handle);
 
-        if !udp_socket.can_send() {
-            //hprintln!("driver::lan8742a::Socket::send error: can't send").unwrap();
-        }
-
-        //match udp_socket.send_slice("hello there\n".as_bytes(), self.remote) {
-        match udp_socket.send_slice(buffer, self.remote) {
-            Ok(()) => (),
-            Err(smoltcp::Error::Exhausted) => (), // TODO figure out if this is a problem
-            Err(e) => hprintln!("driver::lan8742a::Socket::send error: {:?}", e).unwrap(),
-        }
+        let gpiob = unsafe { &mut pac::Peripherals::steal().GPIOB };
+        let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
 
         let mut receive_buffer = [0_u8; jacktrip::packet::PACKET_SIZE];
         if udp_socket.can_recv() {
             match udp_socket.recv_slice(&mut receive_buffer) {
-                Ok(_bytes_received) => (),
-                Err(e) => hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap(),
+                Ok(_bytes_received) => {
+                    gpioe.bsrr.write(|w| w.br1().set_bit());
+                },
+                Err(e) => {
+                    //hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap();
+                    gpioe.bsrr.write(|w| w.bs1().set_bit());
+                },
             }
+        }
+
+        /*let mut count = 0;
+        while !udp_socket.can_send() && count < 5_000 {
+            gpiob.bsrr.write(|w| w.bs14().set_bit());
+            if udp_socket.can_recv() {
+                match udp_socket.recv_slice(&mut receive_buffer) {
+                    Ok(_bytes_received) => (),
+                    Err(e) => hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap(),
+                }
+            }
+            count += 1;
+        }
+        gpiob.bsrr.write(|w| w.br14().set_bit());*/
+
+        if udp_socket.can_send() {
+            match udp_socket.send_slice(buffer, self.remote) {
+                Ok(()) => (),
+                Err(smoltcp::Error::Exhausted) => (), // TODO figure out if this is a problem
+                Err(e) => hprintln!("driver::lan8742a::Socket::send error: {:?}", e).unwrap(),
+            }
+            gpiob.bsrr.write(|w| w.br14().set_bit());
+        } else {
+            //hprintln!("driver::lan8742a::Socket::send error: can't send").unwrap();
+            gpiob.bsrr.write(|w| w.bs14().set_bit());
         }
 
         Ok(buffer.len())
