@@ -7,7 +7,6 @@ use hal::{ethernet, ethernet::PHY};
 use hal::{pac, prelude::*};
 
 use nucleo_h745zi as nucleo;
-use nucleo::ethernet::ETHERNET_MUTEX;
 
 use smoltcp;
 use smoltcp::iface::{
@@ -40,22 +39,17 @@ impl<'a> SocketDriver for Socket<'a> {
         let ip_address = parse_ip_address(address, [0_u8; 4])?;
         let endpoint = IpEndpoint::new(Ipv4Address::from_bytes(&ip_address).into(), port);
 
-        let result = cortex_m::interrupt::free(|cs| {
-            if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
-                let udp_socket_handle = ethernet_interface.new_udp_socket();
-                let mut udp_socket =
-                    ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(udp_socket_handle);
+        let result = nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+            let udp_socket_handle = ethernet_interface.new_udp_socket();
+            let mut udp_socket =
+                ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(udp_socket_handle);
 
-                match udp_socket.bind(endpoint) {
-                    Ok(()) => return Ok(udp_socket_handle),
-                    Err(e) => {
-                        hprintln!("Failed to bind socket to endpoint: {:?}", endpoint).unwrap();
-                        return Err(Error::ToDo);
-                    }
+            match udp_socket.bind(endpoint) {
+                Ok(()) => return Ok(udp_socket_handle),
+                Err(e) => {
+                    hprintln!("Failed to bind socket to endpoint: {:?}", endpoint).unwrap();
+                    return Err(Error::ToDo);
                 }
-            } else {
-                hprintln!("Ethernet interface has not been initialized").unwrap();
-                return Err(Error::ToDo);
             }
         });
 
@@ -88,42 +82,36 @@ impl<'a> SocketDriver for Socket<'a> {
         let gpiob = unsafe { &mut pac::Peripherals::steal().GPIOB };
         let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
 
-        let result = cortex_m::interrupt::free(|cs| {
-            if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
-                let mut udp_socket =
-                    ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(self.socket_handle);
+        let result = nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+            let mut udp_socket =
+                ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(self.socket_handle);
 
 
-                if udp_socket.can_recv() {
-                    match udp_socket.recv_slice(&mut receive_buffer) {
-                        Ok(_bytes_received) => {
-                            gpioe.bsrr.write(|w| w.br1().set_bit());
-                        },
-                        Err(e) => {
-                            //hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap();
-                            gpioe.bsrr.write(|w| w.bs1().set_bit());
-                        },
-                    }
+            if udp_socket.can_recv() {
+                match udp_socket.recv_slice(&mut receive_buffer) {
+                    Ok(_bytes_received) => {
+                        gpioe.bsrr.write(|w| w.br1().set_bit());
+                    },
+                    Err(e) => {
+                        //hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap();
+                        gpioe.bsrr.write(|w| w.bs1().set_bit());
+                    },
                 }
-
-                if udp_socket.can_send() {
-                    match udp_socket.send_slice(buffer, self.remote) {
-                        Ok(()) => (),
-                        Err(smoltcp::Error::Exhausted) => (), // TODO figure out if this is a problem
-                        Err(e) => hprintln!("driver::lan8742a::Socket::send error: {:?}", e).unwrap(),
-                    }
-                    gpiob.bsrr.write(|w| w.br14().set_bit());
-                } else {
-                    //hprintln!("driver::lan8742a::Socket::send error: can't send").unwrap();
-                    gpiob.bsrr.write(|w| w.bs14().set_bit());
-                }
-
-                Ok(buffer.len())
-
-            } else {
-                hprintln!("Ethernet interface has not been initialized").unwrap();
-                return Err(Error::ToDo);
             }
+
+            if udp_socket.can_send() {
+                match udp_socket.send_slice(buffer, self.remote) {
+                    Ok(()) => (),
+                    Err(smoltcp::Error::Exhausted) => (), // TODO figure out if this is a problem
+                    Err(e) => hprintln!("driver::lan8742a::Socket::send error: {:?}", e).unwrap(),
+                }
+                gpiob.bsrr.write(|w| w.br14().set_bit());
+            } else {
+                //hprintln!("driver::lan8742a::Socket::send error: can't send").unwrap();
+                gpiob.bsrr.write(|w| w.bs14().set_bit());
+            }
+
+            Ok(buffer.len())
         });
 
         result

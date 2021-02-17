@@ -45,7 +45,7 @@ pub const MAX_UDP_PACKET_SIZE: usize = 576;
 pub static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing = ethernet::DesRing::new();
 
 //#[link_section = ".axisram.eth"]
-pub static mut ETHERNET_MUTEX: Mutex<RefCell<Option<Interface>>> = Mutex::new(RefCell::new(None));
+static mut ETHERNET_MUTEX: Mutex<RefCell<Option<Interface>>> = Mutex::new(RefCell::new(None));
 pub static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
 
@@ -110,11 +110,7 @@ pub struct Interface<'a> {
 
 
 impl<'a> Interface<'a> {
-    pub fn take(pins: Pins) -> Self {
-        Interface::new(pins)
-    }
-
-    pub fn new(pins: Pins) -> Self {
+    fn new(pins: Pins) -> Self {
         Self {
             pins: pins,
             lan8742a: None,
@@ -122,6 +118,71 @@ impl<'a> Interface<'a> {
             sockets: None,
             _marker: core::marker::PhantomData,
         }
+    }
+
+    pub fn start(
+        pins: Pins,
+        mac_address: &[u8; 6],
+        ip_address: &[u8; 4],
+        eth1mac: hal::rcc::rec::Eth1Mac,
+        ccdr_clocks: &hal::rcc::CoreClocks
+    ) -> Result<(), ()> {
+        let mut interface = Interface::new(pins);
+        match interface.up(mac_address,
+                           ip_address,
+                           eth1mac,
+                           ccdr_clocks) {
+            Ok(()) => (),
+            Err(e) => {
+                hprintln!("Failed to bring up ethernet interface: {}", e).unwrap();
+                return Err(()); // TODO return a more informative result on failure
+            }
+        }
+
+        // wrap ethernet interface in mutex
+        cortex_m::interrupt::free(|cs| {
+            unsafe {
+                ETHERNET_MUTEX.borrow(cs).replace(Some(interface));
+            }
+        });
+
+        Ok(())
+    }
+
+    pub fn interrupt_free<F, R>(f: F) -> R where
+        F: FnOnce(&mut Interface<'static>) -> R {
+        cortex_m::interrupt::free(|cs| {
+            if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
+                f(ethernet_interface)
+            } else {
+                hprintln!("Ethernet interface has not been started").unwrap();
+                panic!("Ethernet interface has not been started");
+            }
+        })
+    }
+
+    pub fn poll_link(&mut self) -> bool {
+        self.lan8742a.as_mut().unwrap().poll_link()
+    }
+
+    // poll ethernet interface
+    pub fn poll(&mut self, now: i64) {
+        let timestamp = Instant::from_millis(now);
+
+        // TODO handle Option properly
+        match self.interface.as_mut().unwrap().poll(&mut self.sockets.as_mut().unwrap(), timestamp) {
+            Ok(result) => {
+                /*let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
+                if result { // packets were processed or emitted
+                    gpioe.bsrr.write(|w| w.br1().set_bit());
+                } else {
+                    gpioe.bsrr.write(|w| w.bs1().set_bit());
+                }*/
+            },
+            Err(smoltcp::Error::Exhausted) => (),
+            Err(smoltcp::Error::Unrecognized) => (),
+            Err(e) => hprintln!("poll {:?}", e).unwrap(),
+        };
     }
 
     pub fn new_udp_socket(&mut self) -> SocketHandle {
@@ -142,7 +203,7 @@ impl<'a> Interface<'a> {
         socket_handle
     }
 
-    pub fn up(&mut self,
+    fn up(&mut self,
               mac_address: &[u8; 6],
               ip_address: &[u8; 4],
               eth1mac: hal::rcc::rec::Eth1Mac,
@@ -209,30 +270,6 @@ impl<'a> Interface<'a> {
         self.sockets = Some(sockets);
 
         Ok(())
-    }
-
-    pub fn poll_link(&mut self) -> bool {
-        self.lan8742a.as_mut().unwrap().poll_link()
-    }
-
-    // poll ethernet interface
-    pub fn poll(&mut self, now: i64) {
-        let timestamp = Instant::from_millis(now);
-
-        // TODO handle Option properly
-        match self.interface.as_mut().unwrap().poll(&mut self.sockets.as_mut().unwrap(), timestamp) {
-            Ok(result) => {
-                /*let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
-                if result { // packets were processed or emitted
-                    gpioe.bsrr.write(|w| w.br1().set_bit());
-                } else {
-                    gpioe.bsrr.write(|w| w.bs1().set_bit());
-                }*/
-            },
-            Err(smoltcp::Error::Exhausted) => (),
-            Err(smoltcp::Error::Unrecognized) => (),
-            Err(e) => hprintln!("poll {:?}", e).unwrap(),
-        };
     }
 }
 

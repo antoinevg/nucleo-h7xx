@@ -31,7 +31,6 @@ use hal::pac;
 use pac::interrupt;
 
 use nucleo_h745zi as nucleo;
-use nucleo::ethernet::ETHERNET_MUTEX;
 
 use smoltcp;
 use smoltcp::iface::{
@@ -141,30 +140,23 @@ fn main() -> ! {
     };
 
     // bring up ethernet interface
-    let mut ethernet_interface = nucleo::ethernet::Interface::new(pins);
-    match ethernet_interface.up(&MAC_LOCAL, &IP_LOCAL,
-                                ccdr.peripheral.ETH1MAC,
-                                &ccdr.clocks,) {
+    match nucleo::ethernet::Interface::start(pins,
+                                             &MAC_LOCAL,
+                                             &IP_LOCAL,
+                                             ccdr.peripheral.ETH1MAC,
+                                             &ccdr.clocks) {
         Ok(()) => (),
         Err(e) => {
-            hprintln!("Failed to bring up ethernet interface: {}", e).unwrap();
+            hprintln!("Failed to start ethernet interface: {:?}", e).unwrap();
             loop {}
         }
     }
 
-    // wrap ethernet interface up in mutex
-    cortex_m::interrupt::free(|cs| {
-        unsafe {
-            ETHERNET_MUTEX.borrow(cs).replace(Some(ethernet_interface));
-        }
+    // wait for link to come up
+    nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+        while !ethernet_interface.poll_link() { }
     });
 
-    // wait for link to come up
-    cortex_m::interrupt::free(|cs| {
-        if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
-            while !ethernet_interface.poll_link() { }
-        }
-    });
 
 
     // - jacktrip interface ---------------------------------------------------
@@ -207,16 +199,12 @@ fn main() -> ! {
 
     loop {
         let time = nucleo::ethernet::ATOMIC_TIME.load(Ordering::Relaxed);
-        cortex_m::interrupt::free(|cs| {
-            if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
-
-                /*match ethernet_interface.poll_link() {
-                    true => led_link.set_high().unwrap(),
-                    _    => led_link.set_low().unwrap(),
-                }*/
-
-                ethernet_interface.poll(time as i64);
-            }
+        nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+            /*match ethernet_interface.poll_link() {
+                true => led_link.set_high().unwrap(),
+                _    => led_link.set_low().unwrap(),
+            }*/
+            ethernet_interface.poll(time as i64);
         });
         cortex_m::asm::wfi();
         //cortex_m::asm::delay(1000000);
