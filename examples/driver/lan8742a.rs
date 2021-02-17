@@ -7,6 +7,7 @@ use hal::{ethernet, ethernet::PHY};
 use hal::{pac, prelude::*};
 
 use nucleo_h745zi as nucleo;
+use nucleo::ethernet::ETHERNET_MUTEX;
 
 use smoltcp;
 use smoltcp::iface::{
@@ -32,8 +33,6 @@ pub struct Socket <'a> {
     _marker: core::marker::PhantomData<&'a ()>
 }
 
-
-//impl SocketDriver for Socket {
 impl<'a> SocketDriver for Socket<'a> {
     fn bind(address: &str, port: u16) -> Result<Socket<'a>> {
         //hprintln!("driver::lan8742a::Socket::bind -> {}:{}", address, port).unwrap();
@@ -41,19 +40,32 @@ impl<'a> SocketDriver for Socket<'a> {
         let ip_address = parse_ip_address(address, [0_u8; 4])?;
         let endpoint = IpEndpoint::new(Ipv4Address::from_bytes(&ip_address).into(), port);
 
-        let ethernet_interface = unsafe { nucleo::ethernet::ETHERNET_INTERFACE.as_mut().unwrap() };
-        let udp_socket_handle = ethernet_interface.new_udp_socket();
+        let result = cortex_m::interrupt::free(|cs| {
+            if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
+                let udp_socket_handle = ethernet_interface.new_udp_socket();
+                let mut udp_socket =
+                    ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(udp_socket_handle);
 
-        let ethernet_interface = unsafe { nucleo::ethernet::ETHERNET_INTERFACE.as_mut().unwrap() };
-        let mut udp_socket = ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(udp_socket_handle);
+                match udp_socket.bind(endpoint) {
+                    Ok(()) => return Ok(udp_socket_handle),
+                    Err(e) => {
+                        hprintln!("Failed to bind socket to endpoint: {:?}", endpoint).unwrap();
+                        return Err(Error::ToDo);
+                    }
+                }
+            } else {
+                hprintln!("Ethernet interface has not been initialized").unwrap();
+                return Err(Error::ToDo);
+            }
+        });
 
-        match udp_socket.bind(endpoint) {
-            Ok(()) => (),
+        let udp_socket_handle = match result {
+            Ok(udp_socket_handle) => udp_socket_handle,
             Err(e) => {
                 hprintln!("Failed to bind socket to endpoint: {:?}", endpoint).unwrap();
                 return Err(Error::ToDo);
             }
-        }
+        };
 
         Ok(Socket {
             socket_handle: udp_socket_handle,
@@ -72,51 +84,49 @@ impl<'a> SocketDriver for Socket<'a> {
     }
 
     fn send(&mut self, buffer: &[u8]) -> Result<usize> {
-        let ethernet_interface = unsafe { nucleo::ethernet::ETHERNET_INTERFACE.as_mut().unwrap() };
-        let mut udp_socket = ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(self.socket_handle);
-
+        let mut receive_buffer = [0_u8; jacktrip::packet::PACKET_SIZE];
         let gpiob = unsafe { &mut pac::Peripherals::steal().GPIOB };
         let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
 
-        let mut receive_buffer = [0_u8; jacktrip::packet::PACKET_SIZE];
-        if udp_socket.can_recv() {
-            match udp_socket.recv_slice(&mut receive_buffer) {
-                Ok(_bytes_received) => {
-                    gpioe.bsrr.write(|w| w.br1().set_bit());
-                },
-                Err(e) => {
-                    //hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap();
-                    gpioe.bsrr.write(|w| w.bs1().set_bit());
-                },
-            }
-        }
+        let result = cortex_m::interrupt::free(|cs| {
+            if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
+                let mut udp_socket =
+                    ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(self.socket_handle);
 
-        /*let mut count = 0;
-        while !udp_socket.can_send() && count < 5_000 {
-            gpiob.bsrr.write(|w| w.bs14().set_bit());
-            if udp_socket.can_recv() {
-                match udp_socket.recv_slice(&mut receive_buffer) {
-                    Ok(_bytes_received) => (),
-                    Err(e) => hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap(),
+
+                if udp_socket.can_recv() {
+                    match udp_socket.recv_slice(&mut receive_buffer) {
+                        Ok(_bytes_received) => {
+                            gpioe.bsrr.write(|w| w.br1().set_bit());
+                        },
+                        Err(e) => {
+                            //hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap();
+                            gpioe.bsrr.write(|w| w.bs1().set_bit());
+                        },
+                    }
                 }
-            }
-            count += 1;
-        }
-        gpiob.bsrr.write(|w| w.br14().set_bit());*/
 
-        if udp_socket.can_send() {
-            match udp_socket.send_slice(buffer, self.remote) {
-                Ok(()) => (),
-                Err(smoltcp::Error::Exhausted) => (), // TODO figure out if this is a problem
-                Err(e) => hprintln!("driver::lan8742a::Socket::send error: {:?}", e).unwrap(),
-            }
-            gpiob.bsrr.write(|w| w.br14().set_bit());
-        } else {
-            //hprintln!("driver::lan8742a::Socket::send error: can't send").unwrap();
-            gpiob.bsrr.write(|w| w.bs14().set_bit());
-        }
+                if udp_socket.can_send() {
+                    match udp_socket.send_slice(buffer, self.remote) {
+                        Ok(()) => (),
+                        Err(smoltcp::Error::Exhausted) => (), // TODO figure out if this is a problem
+                        Err(e) => hprintln!("driver::lan8742a::Socket::send error: {:?}", e).unwrap(),
+                    }
+                    gpiob.bsrr.write(|w| w.br14().set_bit());
+                } else {
+                    //hprintln!("driver::lan8742a::Socket::send error: can't send").unwrap();
+                    gpiob.bsrr.write(|w| w.bs14().set_bit());
+                }
 
-        Ok(buffer.len())
+                Ok(buffer.len())
+
+            } else {
+                hprintln!("Ethernet interface has not been initialized").unwrap();
+                return Err(Error::ToDo);
+            }
+        });
+
+        result
     }
 
     fn receive(&mut self, buffer: &mut [u8]) -> Result<(usize, Address)> {

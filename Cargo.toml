@@ -91,7 +91,7 @@ uses_num = [ "num", "num-derive", "num-traits" ]
 
 [profile.dev]
 #opt-level = 1  # default: 0
-#opt-level = "s" # optimize for binary size
+opt-level = "s" # optimize for binary size
 #debug = true              # default: true
 #debug-assertions = false  # default: true
 #overflow-checks = false   # default: true

@@ -4,8 +4,10 @@
 
 use cortex_m_semihosting::hprintln;
 
+use core::cell::RefCell;
 use core::sync::atomic::{AtomicU32, Ordering};
 
+use cortex_m::interrupt::Mutex;
 use cortex_m_rt::exception;
 
 use stm32h7xx_hal as hal;
@@ -43,11 +45,15 @@ pub const MAX_UDP_PACKET_SIZE: usize = 576;
 pub static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing = ethernet::DesRing::new();
 
 //#[link_section = ".axisram.eth"]
-pub static mut ETHERNET_INTERFACE: Option<Interface> = None;
-static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
+pub static mut ETHERNET_MUTEX: Mutex<RefCell<Option<Interface>>> = Mutex::new(RefCell::new(None));
+pub static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
 
 // - statically allocated storage ---------------------------------------------
+
+pub static mut ETHERNET_STORAGE: Storage = Storage::new();
+pub static mut ETHERNET_SOCKETS_STORAGE: Vec<UdpSocketStorage, heapless::consts::U8>
+    = Vec(heapless::i::Vec::new());
 
 pub struct Storage<'a> {
     ip_addrs: [IpCidr; 1],
@@ -96,22 +102,21 @@ impl<'a> UdpSocketStorage<'a> {
 pub struct Interface<'a> {
     pins: Pins,
 
-    storage: Storage<'a>,
-    sockets_storage: Vec<UdpSocketStorage<'a>, heapless::consts::U8>,
-
     lan8742a: Option<hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>>,
     interface: Option<EthernetInterface<'a, ethernet::EthernetDMA<'a>>>,
-    pub sockets: Option<SocketSet<'a>>,
+    pub sockets: Option<SocketSet<'static>>,
     _marker: core::marker::PhantomData<&'a ()>,
 }
 
 
 impl<'a> Interface<'a> {
+    pub fn take(pins: Pins) -> Self {
+        Interface::new(pins)
+    }
+
     pub fn new(pins: Pins) -> Self {
         Self {
             pins: pins,
-            storage: Storage::new(),
-            sockets_storage: Vec(heapless::i::Vec::new()), // TODO allocate on heap?
             lan8742a: None,
             interface: None,
             sockets: None,
@@ -119,10 +124,12 @@ impl<'a> Interface<'a> {
         }
     }
 
-    pub fn new_udp_socket(&'a mut self) -> SocketHandle {
-        self.sockets_storage.push(UdpSocketStorage::new()).unwrap(); // TODO handle result
-        let len = self.sockets_storage.len();
-        let socket_storage = &mut self.sockets_storage[len - 1];
+    pub fn new_udp_socket(&mut self) -> SocketHandle {
+        unsafe {
+            ETHERNET_SOCKETS_STORAGE.push(UdpSocketStorage::new()).unwrap();  // TODO handle result
+        }
+        let len = unsafe { ETHERNET_SOCKETS_STORAGE.len() };
+        let socket_storage = unsafe { &mut ETHERNET_SOCKETS_STORAGE[len - 1] };
 
         let udp_socket = UdpSocket::new(
             UdpSocketBuffer::new(&mut socket_storage.udp_rx_metadata[..],
@@ -135,7 +142,7 @@ impl<'a> Interface<'a> {
         socket_handle
     }
 
-    pub fn up(&'a mut self,
+    pub fn up(&mut self,
               mac_address: &[u8; 6],
               ip_address: &[u8; 4],
               eth1mac: hal::rcc::rec::Eth1Mac,
@@ -183,17 +190,19 @@ impl<'a> Interface<'a> {
 
         // --------------------------------------------------------------------
 
-        self.storage.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
+        unsafe {
+            ETHERNET_STORAGE.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
+        }
 
-        let neighbor_cache = NeighborCache::new(&mut self.storage.neighbor_cache_storage[..]);
-        let routes = Routes::new(&mut self.storage.routes_storage[..]);
+        let neighbor_cache = NeighborCache::new(unsafe { &mut ETHERNET_STORAGE.neighbor_cache_storage[..] });
+        let routes = Routes::new(unsafe { &mut ETHERNET_STORAGE.routes_storage[..] });
         let interface = EthernetInterfaceBuilder::new(eth_dma)
             .ethernet_addr(ethernet_address)
             .neighbor_cache(neighbor_cache)
-            .ip_addrs(&mut self.storage.ip_addrs[..])
+            .ip_addrs(unsafe { &mut ETHERNET_STORAGE.ip_addrs[..] })
             .routes(routes)
             .finalize();
-        let sockets = SocketSet::new(&mut self.storage.socket_set_entries[..]);
+        let sockets = SocketSet::new(unsafe { &mut ETHERNET_STORAGE.socket_set_entries[..] });
 
         self.lan8742a = Some(lan8742a);
         self.interface = Some(interface);
@@ -258,10 +267,12 @@ pub struct Pins {
 fn ETH() {
     unsafe { ethernet::interrupt_handler() };
 
-    if let Some(ethernet_interface) = unsafe { ETHERNET_INTERFACE.as_mut() } {
-        let time = ATOMIC_TIME.load(Ordering::Relaxed);
-        ethernet_interface.poll(time as i64);
-    }
+    /*let time = ATOMIC_TIME.load(Ordering::Relaxed);
+    cortex_m::interrupt::free(|cs| {
+        if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
+            ethernet_interface.poll(time as i64);
+        }
+    });*/
 }
 
 #[exception]

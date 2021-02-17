@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(unused_parens)]
 #![allow(unused_variables)]
 
 #![no_main]
@@ -30,6 +31,7 @@ use hal::pac;
 use pac::interrupt;
 
 use nucleo_h745zi as nucleo;
+use nucleo::ethernet::ETHERNET_MUTEX;
 
 use smoltcp;
 use smoltcp::iface::{
@@ -61,8 +63,6 @@ const FS: f32 = 48_000.;
 
 // - global static state ------------------------------------------------------
 
-//#[link_section = ".axisram.eth"]
-// TODO move out of nucleo - static mut ETHERNET_INTERFACE: Option<ethernet::Interface> = None;
 static mut JACKTRIP_INTERFACE: Option<jacktrip::Interface<driver::lan8742a::Socket>> = None;
 
 
@@ -141,10 +141,7 @@ fn main() -> ! {
     };
 
     // bring up ethernet interface
-    unsafe {
-        nucleo::ethernet::ETHERNET_INTERFACE = Some(nucleo::ethernet::Interface::new(pins));
-    }
-    let ethernet_interface = unsafe { nucleo::ethernet::ETHERNET_INTERFACE.as_mut().unwrap() };
+    let mut ethernet_interface = nucleo::ethernet::Interface::new(pins);
     match ethernet_interface.up(&MAC_LOCAL, &IP_LOCAL,
                                 ccdr.peripheral.ETH1MAC,
                                 &ccdr.clocks,) {
@@ -155,9 +152,19 @@ fn main() -> ! {
         }
     }
 
+    // wrap ethernet interface up in mutex
+    cortex_m::interrupt::free(|cs| {
+        unsafe {
+            ETHERNET_MUTEX.borrow(cs).replace(Some(ethernet_interface));
+        }
+    });
+
     // wait for link to come up
-    let ethernet_interface = unsafe { nucleo::ethernet::ETHERNET_INTERFACE.as_mut().unwrap() };
-    while !ethernet_interface.poll_link() { }
+    cortex_m::interrupt::free(|cs| {
+        if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
+            while !ethernet_interface.poll_link() { }
+        }
+    });
 
 
     // - jacktrip interface ---------------------------------------------------
@@ -184,10 +191,9 @@ fn main() -> ! {
     // - timers ---------------------------------------------------------------
 
     systick_init(&mut cp.SYST, &ccdr.clocks);  // 1ms tick
-    //let delay = cp.SYST.delay(ccdr.clocks);
 
     // fs / num_frames = 48_000 / 64 = 750 Hz
-    let frequency = (FS / num_frames as f32); // - 1.;
+    let frequency = (FS / num_frames as f32) - 1.;
     //hprintln!("Timer frequency: {} / {} = {} Hz", FS, num_frames, frequency).unwrap();
     let mut timer = dp.TIM2.timer(u32::hz(frequency as u32), ccdr.peripheral.TIM2, &ccdr.clocks);
     timer.listen(hal::timer::Event::TimeOut);
@@ -199,26 +205,21 @@ fn main() -> ! {
 
     // - main loop ------------------------------------------------------------
 
-    //led_user.set_low().unwrap();
-
-    let gpiod = unsafe { pac::Peripherals::steal() }.GPIOD;
-    //let mut toggle = false;
-
     loop {
-        /*match ethernet_interface.poll_link() {
-            true => led_link.set_high().unwrap(),
-            _    => led_link.set_low().unwrap(),
-        }*/
+        let time = nucleo::ethernet::ATOMIC_TIME.load(Ordering::Relaxed);
+        cortex_m::interrupt::free(|cs| {
+            if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
 
-        //tp1.toggle().ok();
-        //tp2.toggle().ok();
+                /*match ethernet_interface.poll_link() {
+                    true => led_link.set_high().unwrap(),
+                    _    => led_link.set_low().unwrap(),
+                }*/
 
-        //delay.delay_ms(3_u16);
-        //cortex_m::asm::delay(1);
-
-        // 16.7 MHz
-        //gpiod.odr.write(|w| w.odr7().bit(toggle));
-        //toggle = !toggle;
+                ethernet_interface.poll(time as i64);
+            }
+        });
+        cortex_m::asm::wfi();
+        //cortex_m::asm::delay(1000000);
     }
 }
 
