@@ -6,15 +6,10 @@
 #![no_main]
 #![no_std]
 
-/// Simple ethernet example that will respond to icmp pings on
-/// `IP_LOCAL` and perioducally send a udp packet to
-/// `IP_REMOTE:IP_REMOTE_PORT`
-///
-/// Also see: https://github.com/stm32-rs/stm32h7xx-hal/blob/master/examples/ethernet-rtic-stm32h747i-disco.rs
-///           https://github.com/adamgreig/stm32f4-smoltcp-demo
-
 use panic_semihosting as _;
 use cortex_m_semihosting::hprintln;
+
+use core::sync::atomic::Ordering;
 
 use cortex_m_rt::entry;
 use cortex_m;
@@ -54,8 +49,6 @@ mod dsp;
 
 const MAC_LOCAL: [u8; 6] = [0x02, 0x00, 0x11, 0x22, 0x33, 0x44];
 const IP_LOCAL: [u8; 4] = [ 192, 168, 20, 99 ];
-//const IP_REMOTE: [u8; 4] = [ 192, 168, 20, 115 ];
-//const IP_REMOTE_PORT: u16 = 4464;
 
 const FS: f32 = 48_000.;
 
@@ -76,21 +69,16 @@ fn main() -> ! {
     // - power & clocks -------------------------------------------------------
 
     let pwr = dp.PWR.constrain();
-    //let pwrcfg = pwr.smps().vos0(&dp.SYSCFG).freeze();
-    let pwrcfg = pwr.smps().freeze();
+    let pwrcfg = pwr.smps().vos0(&dp.SYSCFG).freeze();
+    //let pwrcfg = pwr.smps().freeze();
 
     // link SRAM3 power state to CPU1
     dp.RCC.ahb2enr.modify(|_, w| w.sram3en().set_bit());
 
     let rcc = dp.RCC.constrain();
-    //let ccdr_peripheral: hal::rcc::PeripheralREC = unsafe { rcc.steal_peripheral_rec() };
     let ccdr = rcc
-        //.pll1_strategy(hal::rcc::PllConfigStrategy::Iterative)  // pll1 drives system clock
-        //.sys_ck(480.mhz())
-        //.hclk(240.mhz())
-        .sys_ck(400.mhz())
-        .hclk(200.mhz())
-        .pll1_r_ck(100.mhz()) // for TRACECK
+        .pll1_strategy(hal::rcc::PllConfigStrategy::Iterative)
+        .sys_ck(480.mhz())
         .freeze(pwrcfg, &dp.SYSCFG);
 
     cp.SCB.invalidate_icache();
@@ -158,7 +146,6 @@ fn main() -> ! {
     });
 
 
-
     // - jacktrip interface ---------------------------------------------------
 
     //let jacktrip_host = "192.168.20.114"; // chi
@@ -207,7 +194,7 @@ fn main() -> ! {
             ethernet_interface.poll(time as i64);
         });
         cortex_m::asm::wfi();
-        //cortex_m::asm::delay(1000000);
+        // TODO https://docs.rs/smoltcp/0.7.0/smoltcp/iface/struct.EthernetInterface.html#method.poll_delay
     }
 }
 
@@ -228,9 +215,6 @@ fn systick_init(syst: &mut pac::SYST, clocks: &CoreClocks) {
 
 // - TIM2 ---------------------------------------------------------------------
 
-use core::sync::atomic::{AtomicBool, Ordering};
-static ATOMIC_TOGGLE: AtomicBool = AtomicBool::new(false);
-
 #[interrupt]
 fn TIM2() {
     static mut COUNT: usize = 0;
@@ -248,39 +232,21 @@ fn TIM2() {
         w.uif().clear_bit() // Clears timeout event
     });
 
-    let toggle = ATOMIC_TOGGLE.load(Ordering::SeqCst);
-    let gpiod = unsafe { &mut pac::Peripherals::steal().GPIOD };
-    //gpiod.odr.write(|w| w.odr7().bit(toggle));
-    if toggle {
-        gpiod.bsrr.write(|w| w.bs7().set_bit());
-    } else {
-        gpiod.bsrr.write(|w| w.br7().set_bit());
-    }
-
     // generate & send audio buffer
-    let mut samples: [f32; NUM_FRAMES] = [0.; NUM_FRAMES];
+    let jacktrip_interface = unsafe { JACKTRIP_INTERFACE.as_mut().unwrap() };
+
+    /*let mut samples: [f32; NUM_FRAMES] = [0.; NUM_FRAMES];
     for sample in samples.iter_mut() {
         *sample = OSC_1.step();
     }
-    match unsafe { JACKTRIP_INTERFACE.as_mut().unwrap().send(&samples) } {
+    match jacktrip_interface.send(&samples) } {
         Ok(_bytes_sent) => (),
         Err(e) => hprintln!("oops: {:?}", e).unwrap(),
-    }
-
-    /*unsafe {
-        for _ in 0..NUM_FRAMES {
-            JACKTRIP_INTERFACE.as_mut().unwrap().send(&[
-                OSC_1.step() * 0.75,
-            ]).unwrap();
-        }
     }*/
 
-    //gpiod.odr.write(|w| w.odr6().bit(toggle));
-    if toggle {
-        gpiod.bsrr.write(|w| w.bs6().set_bit());
-    } else {
-        gpiod.bsrr.write(|w| w.br6().set_bit());
+    for _ in 0..NUM_FRAMES {
+        jacktrip_interface.send(&[
+            OSC_1.step() * 0.75,
+        ]).unwrap();
     }
-
-    ATOMIC_TOGGLE.store(!toggle, Ordering::SeqCst);
 }

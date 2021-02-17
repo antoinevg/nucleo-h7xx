@@ -209,16 +209,10 @@ impl<'a> Interface<'a> {
               eth1mac: hal::rcc::rec::Eth1Mac,
               ccdr_clocks: &hal::rcc::CoreClocks) -> Result<(), u32> {
 
-        /*hprintln!("hclk: {}  pclk1: {}  pclk2: {}  pclk4: {}",
-                  ccdr_clocks.hclk().0,
-                  ccdr_clocks.pclk1().0,
-                  ccdr_clocks.pclk2().0,
-                  ccdr_clocks.pclk4().0).unwrap();*/
-
-        assert_eq!(ccdr_clocks.hclk().0,  200_000_000); // HCLK 200MHz
-        assert_eq!(ccdr_clocks.pclk1().0, 100_000_000); // PCLK 100MHz
-        assert_eq!(ccdr_clocks.pclk2().0, 100_000_000); // PCLK 100MHz
-        assert_eq!(ccdr_clocks.pclk4().0, 100_000_000); // PCLK 100MHz
+        assert_eq!(ccdr_clocks.hclk().0,  240_000_000); // HCLK 240MHz
+        assert_eq!(ccdr_clocks.pclk1().0, 120_000_000); // PCLK 120MHz
+        assert_eq!(ccdr_clocks.pclk2().0, 120_000_000); // PCLK 120MHz
+        assert_eq!(ccdr_clocks.pclk4().0, 120_000_000); // PCLK 120MHz
 
         let dp = unsafe { pac::Peripherals::steal() };
         let ethernet_address = EthernetAddress::from_bytes(mac_address);
