@@ -10,8 +10,8 @@ use pac::interrupt;
 // - types --------------------------------------------------------------------
 
 type Usart1Pins = (
-    gpio::gpiob::PB14<gpio::Alternate<hal::gpio::AF4>>,  // tx
-    gpio::gpiob::PB15<gpio::Alternate<hal::gpio::AF4>>,  // rx
+    gpio::gpiob::PB6<gpio::Alternate<hal::gpio::AF7>>,  // tx
+    gpio::gpiob::PB7<gpio::Alternate<hal::gpio::AF7>>,  // rx
 );
 
 #[repr(C)] pub struct OpaqueInterface { _private: [u8; 0] }
