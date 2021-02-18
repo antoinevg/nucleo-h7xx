@@ -6,8 +6,11 @@ use crate::ethernet;
 
 #[allow(non_snake_case)]
 pub struct Pins {
-    //pub D0:  gpio::gpiob::PB7<gpio::Analog>,  // PIN_16,
-    pub D16: gpio::gpioc::PC6<gpio::Analog>,  // PIN_01,
+    // "Arduino" pins
+    pub D51: gpio::gpiod::PD7<gpio::Analog>,
+    pub D52: gpio::gpiod::PD6<gpio::Analog>,
+
     pub ethernet: ethernet::Pins,
+
     // TODO
 }
