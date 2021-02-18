@@ -1,15 +1,13 @@
 pub use stm32h7xx_hal as hal;
 use hal::gpio;
 
+use crate::ethernet;
+
 
 #[allow(non_snake_case)]
 pub struct Pins {
-    pub D0:  gpio::gpiob::PB7<gpio::Analog>,  // PIN_16,
+    //pub D0:  gpio::gpiob::PB7<gpio::Analog>,  // PIN_16,
     pub D16: gpio::gpioc::PC6<gpio::Analog>,  // PIN_01,
+    pub ethernet: ethernet::Pins,
     // TODO
 }
-
-
-// LD1: green,  PB0 or PB5
-// LD2: yellow, PE1
-// LD3: red,    PB14
