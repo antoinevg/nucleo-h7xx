@@ -292,6 +292,18 @@ pub struct Pins {
 }
 
 
+// - systick configuration ----------------------------------------------------
+
+pub fn systick_init(syst: &mut pac::SYST, clocks: &hal::rcc::CoreClocks) {
+    let c_ck_mhz = clocks.c_ck().0 / 1_000_000;
+    let syst_calib = 0x3E8;
+    syst.set_clock_source(cortex_m::peripheral::syst::SystClkSource::Core);
+    syst.set_reload((syst_calib * c_ck_mhz) - 1);
+    syst.enable_interrupt();
+    syst.enable_counter();
+}
+
+
 // - interrupts and exceptions ------------------------------------------------
 
 #[interrupt]
