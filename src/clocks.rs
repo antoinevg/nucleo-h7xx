@@ -15,14 +15,15 @@ const PLL3_P: Hertz = Hertz(48_000 * 256);
 
 // - types --------------------------------------------------------------------
 
-pub trait SeedCrystal {
-    const CRYSTAL_FREQ: MegaHertz = MegaHertz(16);
-
-    fn use_seed_crystal(self) -> Self;
+pub trait HseCrystal {
+    // by default it uses the MCO output of the ST-Link which has a fixed frequency of 8 MHz
+    // TODO Add a feature to support the onboard HSE oscillator from X2, a 25 MHz crystal.
+    const CRYSTAL_FREQ: MegaHertz = MegaHertz(8);
+    fn use_hse_crystal(self) -> Self;
 }
 
-impl SeedCrystal for rcc::Rcc {
-    fn use_seed_crystal(self) -> Self {
+impl HseCrystal for rcc::Rcc {
+    fn use_hse_crystal(self) -> Self {
         self.use_hse(Self::CRYSTAL_FREQ)
     }
 }
@@ -30,23 +31,23 @@ impl SeedCrystal for rcc::Rcc {
 
 // - configure ----------------------------------------------------------------
 
-/// Configures the 16 MHz crystal, a 480 MHz system clock and PLL3 for
-/// SAI audio
+/// Configures system clocks:
 ///
-/// The Daisy Seed has a 16 MHz crystal wired to the MCU's high-speed
-/// external oscillator pins. We enable that, and use it to drive the
-/// full 480 MHz system clock.
+///   HSE crystal
+///   480 MHz system clock
+///   PLL3 for SAI audio
 ///
 /// Usage:
 ///
 /// ```
 /// let dp = pac::Peripherals::take().unwrap();
-/// let ccdr = configure(dp.PWR.constrain(), dp.RCC.constrain(), &dp.SYSCFG);
-/// let clocks = configure(rcc);
+/// let ccdr = configure(dp.PWR.constrain(),
+///                      dp.RCC.constrain(),
+///                      &dp.SYSCFG);
 /// ```
 pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccdr {
     let pwrcfg = pwr.vos0(syscfg).freeze();
-    rcc.use_seed_crystal()
+    rcc//.use_hse_crystal()  // TODO
        .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
        .sys_ck(480.mhz())                                // system clock @ 480 MHz
        .pll3_p_ck(PLL3_P)
