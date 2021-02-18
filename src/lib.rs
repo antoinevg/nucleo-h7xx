@@ -50,9 +50,9 @@ static mut BOARD: Option<Board> = None;
 #[allow(non_snake_case)]
 pub struct Board<'a> {
     pub clocks: hal::rcc::CoreClocks,
-    pub peripheral: hal::rcc::rec::PeripheralREC,
+    pub ccdr_peripheral: Option<hal::rcc::rec::PeripheralREC>,
     pub user_leds: led::UserLeds,
-    pub pins: pin::Pins,
+    pub pins: Option<pin::Pins>,
     pub USART1: usart::Interface<'a>,
 
     _marker: core::marker::PhantomData<&'a ()>,
@@ -82,13 +82,22 @@ impl<'a> Board<'a> {
         BOARD.as_mut().expect("Board has not been initialized")
     }
 
-    fn new(_cp: pac::CorePeripherals, dp: pac::Peripherals) -> Board<'a> {
+    fn new(mut cp: pac::CorePeripherals, dp: pac::Peripherals) -> Board<'a> {
+        // link SRAM3 power state to CPU1
+        dp.RCC.ahb2enr.modify(|_, w| w.sram3en().set_bit());
+
         let rcc = dp.RCC.constrain();
         let ccdr_peripheral = unsafe { rcc.steal_peripheral_rec() };
 
+        // configure clocks
         let ccdr: hal::rcc::Ccdr = clocks::configure(dp.PWR.constrain(),
                                                      rcc,
                                                      &dp.SYSCFG);
+
+        // configure cpu
+        cp.SCB.invalidate_icache();
+        cp.SCB.enable_icache();
+        cp.DWT.enable_cycle_counter();
 
         let gpioa: gpio::gpioa::Parts = dp.GPIOA.split(ccdr.peripheral.GPIOA);
         let gpiob: gpio::gpiob::Parts = dp.GPIOB.split(ccdr.peripheral.GPIOB);
@@ -107,16 +116,16 @@ impl<'a> Board<'a> {
 
         Self {
             clocks: ccdr.clocks,
-            peripheral: ccdr_peripheral,
+            ccdr_peripheral: Some(ccdr_peripheral),
             user_leds: led::UserLeds::new(led::Pins {
                 ld_1: gpiob.pb0.into_push_pull_output(), // TODO feature
                 // ld_1: gpioa.pa5.into_push_pull_output(), // TODO feature
                 ld_2: gpioe.pe1.into_push_pull_output(),
                 ld_3: gpiob.pb14.into_push_pull_output(),
             }),
-            pins: pin::Pins {
-                //D0: gpiob.pb7,
-                D16: gpioc.pc6,
+            pins: Some(pin::Pins {
+                D51: gpiod.pd7,
+                D52: gpiod.pd6,
                 ethernet: ethernet::Pins {
                     ref_clk: gpioa.pa1.into_alternate_af11().set_speed(VeryHigh),
                     md_io:   gpioa.pa2.into_alternate_af11().set_speed(VeryHigh),
@@ -129,10 +138,20 @@ impl<'a> Board<'a> {
                     tx_d1:   gpiob.pb13.into_alternate_af11().set_speed(VeryHigh),
                 },
                 // TODO
-            },
+            }),
             USART1: usart1_interface,
 
             _marker: core::marker::PhantomData
         }
+    }
+
+    pub unsafe fn take_pins(&mut self) -> pin::Pins {
+        let p = core::ptr::replace(&mut self.pins, None);
+        p.unwrap()
+    }
+
+    pub unsafe fn take_ccdr_peripheral(&mut self) -> hal::rcc::rec::PeripheralREC {
+        let p = core::ptr::replace(&mut self.ccdr_peripheral, None);
+        p.unwrap()
     }
 }
