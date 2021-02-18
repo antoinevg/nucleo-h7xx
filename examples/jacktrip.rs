@@ -62,77 +62,28 @@ static mut JACKTRIP_INTERFACE: Option<jacktrip::Interface<driver::lan8742a::Sock
 
 #[entry]
 fn main() -> ! {
-    let dp = pac::Peripherals::take().unwrap();
-    let mut cp = pac::CorePeripherals::take().unwrap();
 
-
-    // - power & clocks -------------------------------------------------------
-
-    let pwr = dp.PWR.constrain();
-    let pwrcfg = pwr.smps().vos0(&dp.SYSCFG).freeze();
-    //let pwrcfg = pwr.smps().freeze();
-
-    // link SRAM3 power state to CPU1
-    dp.RCC.ahb2enr.modify(|_, w| w.sram3en().set_bit());
-
-    let rcc = dp.RCC.constrain();
-    let ccdr = rcc
-        .pll1_strategy(hal::rcc::PllConfigStrategy::Iterative)
-        .sys_ck(480.mhz())
-        .freeze(pwrcfg, &dp.SYSCFG);
-
-    cp.SCB.invalidate_icache();
-    cp.SCB.enable_icache();
-    cp.DWT.enable_cycle_counter();
-
-
-    // - gpios ----------------------------------------------------------------
-
-    let gpioa = dp.GPIOA.split(ccdr.peripheral.GPIOA);
-    let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
-    let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
-    let gpiod = dp.GPIOD.split(ccdr.peripheral.GPIOD);
-    let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
-    let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
+    let board = nucleo::Board::take().unwrap();
+    let board_pins = unsafe { board.take_pins() };
+    let ccdr_peripheral = unsafe { board.take_ccdr_peripheral() };
+    let ccdr_clocks = &board.clocks;
 
 
     // - test points ---------------------------------------------------------
 
-    let mut tp1 = gpiod.pd7.into_push_pull_output().set_speed(VeryHigh);
-    let mut tp2 = gpiod.pd6.into_push_pull_output().set_speed(VeryHigh);
+    /*let mut tp1 = board_pins.D51.into_push_pull_output().set_speed(VeryHigh);
+    let mut tp2 = board_pins.D52.into_push_pull_output().set_speed(VeryHigh);
     tp1.set_low().ok();
-    tp2.set_low().ok();
-
-
-    // - leds ----------------------------------------------------------------
-
-    let mut led_user = gpiob.pb14.into_push_pull_output();  // LED3, red
-    let mut led_link = gpioe.pe1.into_push_pull_output();   // LED2, yellow
-    led_user.set_low().ok();
-    led_link.set_low().ok();
+    tp2.set_low().ok();*/
 
 
     // - ethernet interface ---------------------------------------------------
 
-    // configure pins for ethernet interface
-    let pins = nucleo::ethernet::Pins {
-        ref_clk: gpioa.pa1.into_alternate_af11().set_speed(VeryHigh),
-        md_io:   gpioa.pa2.into_alternate_af11().set_speed(VeryHigh),
-        md_clk:  gpioc.pc1.into_alternate_af11().set_speed(VeryHigh),
-        crs:     gpioa.pa7.into_alternate_af11().set_speed(VeryHigh),
-        rx_d0:   gpioc.pc4.into_alternate_af11().set_speed(VeryHigh),
-        rx_d1:   gpioc.pc5.into_alternate_af11().set_speed(VeryHigh),
-        tx_en:   gpiog.pg11.into_alternate_af11().set_speed(VeryHigh),
-        tx_d0:   gpiog.pg13.into_alternate_af11().set_speed(VeryHigh),
-        tx_d1:   gpiob.pb13.into_alternate_af11().set_speed(VeryHigh),
-    };
-
-    // bring up ethernet interface
-    match nucleo::ethernet::Interface::start(pins,
+    match nucleo::ethernet::Interface::start(board_pins.ethernet,
                                              &MAC_LOCAL,
                                              &IP_LOCAL,
-                                             ccdr.peripheral.ETH1MAC,
-                                             &ccdr.clocks) {
+                                             ccdr_peripheral.ETH1MAC,
+                                             &ccdr_clocks) {
         Ok(()) => (),
         Err(e) => {
             hprintln!("Failed to start ethernet interface: {:?}", e).unwrap();
@@ -169,12 +120,15 @@ fn main() -> ! {
 
     // - timers ---------------------------------------------------------------
 
-    systick_init(&mut cp.SYST, &ccdr.clocks);  // 1ms tick
+    let dp = unsafe { pac::Peripherals::steal() };
+    let mut cp = unsafe { pac::CorePeripherals::steal() };
+
+    nucleo::ethernet::systick_init(&mut cp.SYST, &ccdr_clocks);  // 1ms tick
 
     // fs / num_frames = 48_000 / 64 = 750 Hz
     let frequency = (FS / num_frames as f32) - 1.;
     //hprintln!("Timer frequency: {} / {} = {} Hz", FS, num_frames, frequency).unwrap();
-    let mut timer = dp.TIM2.timer(u32::hz(frequency as u32), ccdr.peripheral.TIM2, &ccdr.clocks);
+    let mut timer = dp.TIM2.timer(u32::hz(frequency as u32), ccdr_peripheral.TIM2, &ccdr_clocks);
     timer.listen(hal::timer::Event::TimeOut);
     unsafe {
         cp.NVIC.set_priority(interrupt::TIM2, 1);
@@ -196,20 +150,6 @@ fn main() -> ! {
         cortex_m::asm::wfi();
         // TODO https://docs.rs/smoltcp/0.7.0/smoltcp/iface/struct.EthernetInterface.html#method.poll_delay
     }
-}
-
-
-// - systick ------------------------------------------------------------------
-
-// TODO move to nucleo::ethernet
-
-fn systick_init(syst: &mut pac::SYST, clocks: &CoreClocks) {
-    let c_ck_mhz = clocks.c_ck().0 / 1_000_000;
-    let syst_calib = 0x3E8;
-    syst.set_clock_source(cortex_m::peripheral::syst::SystClkSource::Core);
-    syst.set_reload((syst_calib * c_ck_mhz) - 1);
-    syst.enable_interrupt();
-    syst.enable_counter();
 }
 
 
