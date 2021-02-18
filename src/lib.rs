@@ -14,6 +14,7 @@ pub use hal::pac;
 
 use hal::prelude::*;
 use hal::gpio;
+use hal::gpio::Speed::VeryHigh;
 
 
 // - modules ------------------------------------------------------------------
@@ -38,10 +39,10 @@ use panic_semihosting as _;
 // versions of this crate as that would let you `take` the core
 // peripherals more than once (one per minor version)
 #[no_mangle]
-static DAISY_BOARD: () = ();
+static NUCLEO_BOARD: () = ();
 
-/// Set to `true` when `take` was called to make `Board` a singleton.
-static mut TAKEN: bool = false;
+/// Global static to hold our Board singleton so it's possible to steal it
+static mut BOARD: Option<Board> = None;
 
 
 // - Board --------------------------------------------------------------------
@@ -50,27 +51,35 @@ static mut TAKEN: bool = false;
 pub struct Board<'a> {
     pub clocks: hal::rcc::CoreClocks,
     pub peripheral: hal::rcc::rec::PeripheralREC,
+    pub user_leds: led::UserLeds,
     pub pins: pin::Pins,
-    pub leds: led::Leds,
-
     pub USART1: usart::Interface<'a>,
 
-    _marker: core::marker::PhantomData<&'a *const ()>,
+    _marker: core::marker::PhantomData<&'a ()>,
 }
 
 impl<'a> Board<'a> {
     /// Returns the nucleo board *once*
     #[inline]
-    pub fn take()  -> Option<Self> {
+    pub fn take() -> Option<&'static mut Self> {
         cortex_m::interrupt::free(|_| {
-            if unsafe { TAKEN } {
-                None
+            if unsafe { BOARD.is_none() } {
+                let board = Self::new(
+                    pac::CorePeripherals::take()?,
+                    pac::Peripherals::take()?
+                );
+                unsafe { BOARD = Some(board) };
+                Some(unsafe { Board::steal() })
+
             } else {
-                unsafe { TAKEN = true; }
-                Some(Self::new(pac::CorePeripherals::take()?,
-                               pac::Peripherals::take()?))
+                None
             }
         })
+    }
+
+    /// Unchecked version of `Board::take`
+    pub unsafe fn steal() -> &'static mut Self {
+        BOARD.as_mut().expect("Board has not been initialized")
     }
 
     fn new(_cp: pac::CorePeripherals, dp: pac::Peripherals) -> Board<'a> {
@@ -89,8 +98,8 @@ impl<'a> Board<'a> {
         let gpiog: gpio::gpiog::Parts = dp.GPIOG.split(ccdr.peripheral.GPIOG);
 
         let usart1_pins = (
-            gpiob.pb14.into_alternate_af4(),    // USART1 TX - GPIO29 - Pin 36 <= GPIOB 14
-            gpiob.pb15.into_alternate_af4(),    // USART1 RX - GPIO30 - Pin 37 => GPIOB 15
+            gpiob.pb6.into_alternate_af7(),    // USART1 TX
+            gpiob.pb7.into_alternate_af7(),    // USART1 RX
         );
         let usart1_interface = usart::Interface::init(&ccdr.clocks,
                                                       ccdr.peripheral.USART1,
@@ -99,12 +108,26 @@ impl<'a> Board<'a> {
         Self {
             clocks: ccdr.clocks,
             peripheral: ccdr_peripheral,
-            leds: led::Leds {
-                USER: led::LedUser::new(gpioc.pc7)
-            },
+            user_leds: led::UserLeds::new(led::Pins {
+                ld_1: gpiob.pb0.into_push_pull_output(), // TODO feature
+                // ld_1: gpioa.pa5.into_push_pull_output(), // TODO feature
+                ld_2: gpioe.pe1.into_push_pull_output(),
+                ld_3: gpiob.pb14.into_push_pull_output(),
+            }),
             pins: pin::Pins {
-                D0: gpiob.pb7,
+                //D0: gpiob.pb7,
                 D16: gpioc.pc6,
+                ethernet: ethernet::Pins {
+                    ref_clk: gpioa.pa1.into_alternate_af11().set_speed(VeryHigh),
+                    md_io:   gpioa.pa2.into_alternate_af11().set_speed(VeryHigh),
+                    md_clk:  gpioc.pc1.into_alternate_af11().set_speed(VeryHigh),
+                    crs:     gpioa.pa7.into_alternate_af11().set_speed(VeryHigh),
+                    rx_d0:   gpioc.pc4.into_alternate_af11().set_speed(VeryHigh),
+                    rx_d1:   gpioc.pc5.into_alternate_af11().set_speed(VeryHigh),
+                    tx_en:   gpiog.pg11.into_alternate_af11().set_speed(VeryHigh),
+                    tx_d0:   gpiog.pg13.into_alternate_af11().set_speed(VeryHigh),
+                    tx_d1:   gpiob.pb13.into_alternate_af11().set_speed(VeryHigh),
+                },
                 // TODO
             },
             USART1: usart1_interface,
