@@ -15,7 +15,6 @@ use hal::prelude::*;
 use hal::hal::digital::v2::OutputPin;
 use hal::gpio::Speed::*;
 use hal::{ethernet, ethernet::PHY};
-use hal::timer::Timer;
 
 use hal::pac;
 use pac::interrupt;
@@ -38,6 +37,8 @@ use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
 
 use heapless::Vec;
+
+use crate::timer::CountDownTimer as Timer;
 
 
 // - global constants ---------------------------------------------------------
@@ -235,31 +236,26 @@ impl<'a> Interface<'a> {
         lan8742a.phy_reset();
         lan8742a.phy_init();
 
-        // wait for link to come up - TODO stm32h7xx_hal's CountDown timer implementation maxes out at 1 second
+        // wait for link to come up
         timeout_timer.start(1000.ms());
-        let mut timed_out = true;
-        repeat_timeout!(
+        let result: Result<(), TimeoutError<()>> = block_timeout!(
             &mut timeout_timer,
             {
-                Ok(lan8742a.poll_link())
-            },
-            (is_up) {
-                if is_up {
-                    timed_out = false;
-                    break;
+                if lan8742a.poll_link() {
+                    hprintln!("Ethernet link is up").unwrap();
+                    Ok(())
                 } else {
-                    continue;
+                    Err(nb::Error::WouldBlock)
                 }
-            };
-            (error) { // poll_link() does not return a Result so this is never called
-                let error: Error = error;
-            };
+            }
         );
-        while !lan8742a.poll_link() { } // TODO only until we fix the above TODO
-        /*if timed_out {
-            hprintln!("Ethernet timed out while waiting for link to come up").unwrap();
-            return Err(Error::LinkTimedOut);
-        }*/
+        match result {
+            Ok(()) => (),
+            Err(TimeoutError::Timeout) | Err(_) => {
+                hprintln!("Ethernet timed out while waiting for link to come up").unwrap();
+                return Err(Error::LinkTimedOut);
+            },
+        }
 
         // enable ethernet interrupt
         let cp = unsafe { &mut pac::CorePeripherals::steal() };

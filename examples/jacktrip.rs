@@ -80,7 +80,8 @@ fn main() -> ! {
     // - ethernet interface ---------------------------------------------------
 
     let dp = unsafe { pac::Peripherals::steal() };
-    let timeout_timer = dp.TIM17.timer(10_000.hz(), ccdr_peripheral.TIM17, &ccdr_clocks);
+    let timeout_timer = dp.TIM17.timer(100.hz(), ccdr_peripheral.TIM17, &ccdr_clocks);
+    let timeout_timer = nucleo::timer::CountDownTimer::new(timeout_timer);
     let timeout_timer = match nucleo::ethernet::Interface::start(board_pins.ethernet,
                                                                  &MAC_LOCAL,
                                                                  &IP_LOCAL,
