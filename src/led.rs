@@ -52,7 +52,7 @@ impl UserLeds {
 pub struct UserLed<P>(P);
 
 impl<P> Led for UserLed<P>
-where P: OutputPin +  {
+where P: OutputPin {
     fn on(&mut self) {
         match self.0.set_high() {
             Ok(()) => (),
