@@ -24,6 +24,7 @@ pub use clocks::configure as configure_clocks;
 pub mod led;
 pub mod ethernet;
 pub mod pin;
+pub mod timer;
 pub mod usart;
 
 // TODO proper logging with compile-time feature selection of: semihosting/itm/rtt
