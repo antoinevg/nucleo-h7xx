@@ -52,7 +52,7 @@ pub static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 // - statically allocated storage ---------------------------------------------
 
 pub static mut ETHERNET_STORAGE: Storage = Storage::new();
-pub static mut ETHERNET_SOCKETS_STORAGE: Vec<UdpSocketStorage, heapless::consts::U8>
+static mut ETHERNET_SOCKETS_STORAGE: Vec<UdpSocketStorage, heapless::consts::U8>
     = Vec(heapless::i::Vec::new());
 
 pub struct Storage<'a> {
