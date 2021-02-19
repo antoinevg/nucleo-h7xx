@@ -63,7 +63,7 @@ pub struct Storage<'a> {
 }
 
 impl<'a> Storage<'a> {
-    pub const fn new() -> Self {
+    const fn new() -> Self {
         Storage {
             ip_addrs: [IpCidr::Ipv6(Ipv6Cidr::SOLICITED_NODE_PREFIX)],
             socket_set_entries: [None, None, None, None, None, None, None, None],
@@ -84,7 +84,7 @@ pub struct UdpSocketStorage <'a> {
 }
 
 impl<'a> UdpSocketStorage<'a> {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             socket_handle: None,
             udp_rx_metadata: [UdpPacketMetadata::EMPTY],
