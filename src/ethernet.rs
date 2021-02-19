@@ -15,9 +15,16 @@ use hal::prelude::*;
 use hal::hal::digital::v2::OutputPin;
 use hal::gpio::Speed::*;
 use hal::{ethernet, ethernet::PHY};
+use hal::timer::Timer;
 
 use hal::pac;
 use pac::interrupt;
+
+use embedded_timeout_macros::{
+    block_timeout,
+    repeat_timeout,
+    TimeoutError,
+};
 
 use smoltcp;
 use smoltcp::iface::{
@@ -97,12 +104,11 @@ impl<'a> UdpSocketStorage<'a> {
 }
 
 
-// - Error types --------------------------------------------------------------
+// - types --------------------------------------------------------------------
 
 #[derive(Debug)]
 pub enum Error {
-    Unknown,
-    TimedOut,
+    LinkTimedOut,
     ToDo,
 }
 
@@ -154,24 +160,26 @@ impl<'a> Interface<'a> {
         owned_resources
     }
 
-    pub fn start(
-        pins: Pins,
-        mac_address: &[u8; 6],
-        ip_address: &[u8; 4],
-        eth1mac: hal::rcc::rec::Eth1Mac,
-        ccdr_clocks: &hal::rcc::CoreClocks
-    ) -> Result<(), ()> {
+    pub fn start(pins: Pins,
+                 mac_address: &[u8; 6],
+                 ip_address: &[u8; 4],
+                 eth1mac: hal::rcc::rec::Eth1Mac,
+                 ccdr_clocks: &hal::rcc::CoreClocks,
+                 timeout_timer: Timer<pac::TIM17>) -> Result<Timer<pac::TIM17>, Error> {
         let mut interface = Interface::new(pins);
-        match interface.up(mac_address,
-                           ip_address,
-                           eth1mac,
-                           ccdr_clocks) {
-            Ok(()) => (),
+        let timeout_timer = match interface.up(mac_address,
+                                               ip_address,
+                                               eth1mac,
+                                               ccdr_clocks,
+                                               timeout_timer) {
+            Ok(timeout_timer) => {
+                timeout_timer
+            },
             Err(e) => {
-                hprintln!("Failed to bring up ethernet interface: {}", e).unwrap();
-                return Err(()); // TODO return a more informative result on failure
+                hprintln!("Failed to bring up ethernet interface: {:?}", e).unwrap();
+                return Err(e);
             }
-        }
+        };
 
         // wrap ethernet interface in mutex
         cortex_m::interrupt::free(|cs| {
@@ -180,7 +188,7 @@ impl<'a> Interface<'a> {
             }
         });
 
-        Ok(())
+        Ok(timeout_timer)
     }
 
     pub fn interrupt_free<F, R>(f: F) -> R where
@@ -193,6 +201,95 @@ impl<'a> Interface<'a> {
                 panic!("Ethernet interface has not been started");
             }
         })
+    }
+
+    fn up(&mut self,
+          mac_address: &[u8; 6],
+          ip_address: &[u8; 4],
+          eth1mac: hal::rcc::rec::Eth1Mac,
+          ccdr_clocks: &hal::rcc::CoreClocks,
+          mut timeout_timer: Timer<pac::TIM17>) -> Result<Timer<pac::TIM17>, Error> {
+
+        assert_eq!(ccdr_clocks.hclk().0,  240_000_000); // HCLK 240MHz
+        assert_eq!(ccdr_clocks.pclk1().0, 120_000_000); // PCLK 120MHz
+        assert_eq!(ccdr_clocks.pclk2().0, 120_000_000); // PCLK 120MHz
+        assert_eq!(ccdr_clocks.pclk4().0, 120_000_000); // PCLK 120MHz
+
+        let dp = unsafe { pac::Peripherals::steal() };
+        let ethernet_address = EthernetAddress::from_bytes(mac_address);
+        let (eth_dma, eth_mac) = unsafe {
+            ethernet::new_unchecked(
+                dp.ETHERNET_MAC,
+                dp.ETHERNET_MTL,
+                dp.ETHERNET_DMA,
+                &mut ETHERNET_DESCRIPTOR_RING,
+                ethernet_address,
+                eth1mac,
+                ccdr_clocks,
+            )
+        };
+
+        // initialise PHY
+        let mut lan8742a: hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>
+            = ethernet::phy::LAN8742A::new(eth_mac.set_phy_addr(0));
+        lan8742a.phy_reset();
+        lan8742a.phy_init();
+
+        // wait for link to come up - TODO stm32h7xx_hal's CountDown timer implementation maxes out at 1 second
+        timeout_timer.start(1000.ms());
+        let mut timed_out = true;
+        repeat_timeout!(
+            &mut timeout_timer,
+            {
+                Ok(lan8742a.poll_link())
+            },
+            (is_up) {
+                if is_up {
+                    timed_out = false;
+                    break;
+                } else {
+                    continue;
+                }
+            };
+            (error) { // poll_link() does not return a Result so this is never called
+                let error: Error = error;
+            };
+        );
+        while !lan8742a.poll_link() { } // TODO only until we fix the above TODO
+        /*if timed_out {
+            hprintln!("Ethernet timed out while waiting for link to come up").unwrap();
+            return Err(Error::LinkTimedOut);
+        }*/
+
+        // enable ethernet interrupt
+        let cp = unsafe { &mut pac::CorePeripherals::steal() };
+        unsafe {
+            ethernet::enable_interrupt();
+            cp.NVIC.set_priority(pac::Interrupt::ETH, 196); // mid prio
+            cortex_m::peripheral::NVIC::unmask(pac::Interrupt::ETH);
+        }
+
+        // --------------------------------------------------------------------
+
+        unsafe {
+            ETHERNET_STORAGE.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
+        }
+
+        let neighbor_cache = NeighborCache::new(unsafe { &mut ETHERNET_STORAGE.neighbor_cache_storage[..] });
+        let routes = Routes::new(unsafe { &mut ETHERNET_STORAGE.routes_storage[..] });
+        let interface = EthernetInterfaceBuilder::new(eth_dma)
+            .ethernet_addr(ethernet_address)
+            .neighbor_cache(neighbor_cache)
+            .ip_addrs(unsafe { &mut ETHERNET_STORAGE.ip_addrs[..] })
+            .routes(routes)
+            .finalize();
+        let sockets = SocketSet::new(unsafe { &mut ETHERNET_STORAGE.socket_set_entries[..] });
+
+        self.lan8742a = Some(lan8742a);
+        self.interface = Some(interface);
+        self.sockets = Some(sockets);
+
+        Ok(timeout_timer)
     }
 
     pub fn poll_link(&mut self) -> bool {
@@ -235,69 +332,6 @@ impl<'a> Interface<'a> {
 
         let socket_handle = self.sockets.as_mut().unwrap().add(udp_socket);
         socket_handle
-    }
-
-    fn up(&mut self,
-              mac_address: &[u8; 6],
-              ip_address: &[u8; 4],
-              eth1mac: hal::rcc::rec::Eth1Mac,
-              ccdr_clocks: &hal::rcc::CoreClocks) -> Result<(), u32> {
-
-        assert_eq!(ccdr_clocks.hclk().0,  240_000_000); // HCLK 240MHz
-        assert_eq!(ccdr_clocks.pclk1().0, 120_000_000); // PCLK 120MHz
-        assert_eq!(ccdr_clocks.pclk2().0, 120_000_000); // PCLK 120MHz
-        assert_eq!(ccdr_clocks.pclk4().0, 120_000_000); // PCLK 120MHz
-
-        let dp = unsafe { pac::Peripherals::steal() };
-        let ethernet_address = EthernetAddress::from_bytes(mac_address);
-        let (eth_dma, eth_mac) = unsafe {
-            ethernet::new_unchecked(
-                dp.ETHERNET_MAC,
-                dp.ETHERNET_MTL,
-                dp.ETHERNET_DMA,
-                &mut ETHERNET_DESCRIPTOR_RING,
-                ethernet_address,
-                eth1mac,
-                ccdr_clocks,
-            )
-        };
-
-        // initialise PHY and wait for link to come up
-        let mut lan8742a: hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>
-            = ethernet::phy::LAN8742A::new(eth_mac.set_phy_addr(0));
-        lan8742a.phy_reset();
-        lan8742a.phy_init();
-        while !self.poll_link() { } // TODO implement a time-out
-
-        // enable ethernet interrupt
-        let cp = unsafe { &mut pac::CorePeripherals::steal() };
-        unsafe {
-            ethernet::enable_interrupt();
-            cp.NVIC.set_priority(pac::Interrupt::ETH, 196); // mid prio
-            cortex_m::peripheral::NVIC::unmask(pac::Interrupt::ETH);
-        }
-
-        // --------------------------------------------------------------------
-
-        unsafe {
-            ETHERNET_STORAGE.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
-        }
-
-        let neighbor_cache = NeighborCache::new(unsafe { &mut ETHERNET_STORAGE.neighbor_cache_storage[..] });
-        let routes = Routes::new(unsafe { &mut ETHERNET_STORAGE.routes_storage[..] });
-        let interface = EthernetInterfaceBuilder::new(eth_dma)
-            .ethernet_addr(ethernet_address)
-            .neighbor_cache(neighbor_cache)
-            .ip_addrs(unsafe { &mut ETHERNET_STORAGE.ip_addrs[..] })
-            .routes(routes)
-            .finalize();
-        let sockets = SocketSet::new(unsafe { &mut ETHERNET_STORAGE.socket_set_entries[..] });
-
-        self.lan8742a = Some(lan8742a);
-        self.interface = Some(interface);
-        self.sockets = Some(sockets);
-
-        Ok(())
     }
 }
 

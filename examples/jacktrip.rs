@@ -79,17 +79,20 @@ fn main() -> ! {
 
     // - ethernet interface ---------------------------------------------------
 
-    match nucleo::ethernet::Interface::start(board_pins.ethernet,
-                                             &MAC_LOCAL,
-                                             &IP_LOCAL,
-                                             ccdr_peripheral.ETH1MAC,
-                                             &ccdr_clocks) {
-        Ok(()) => (),
+    let dp = unsafe { pac::Peripherals::steal() };
+    let timeout_timer = dp.TIM17.timer(10_000.hz(), ccdr_peripheral.TIM17, &ccdr_clocks);
+    let timeout_timer = match nucleo::ethernet::Interface::start(board_pins.ethernet,
+                                                                 &MAC_LOCAL,
+                                                                 &IP_LOCAL,
+                                                                 ccdr_peripheral.ETH1MAC,
+                                                                 &ccdr_clocks,
+                                                                 timeout_timer) {
+        Ok(tim17) => tim17,
         Err(e) => {
             hprintln!("Failed to start ethernet interface: {:?}", e).unwrap();
             loop {}
         }
-    }
+    };
 
     // wait for link to come up
     nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {

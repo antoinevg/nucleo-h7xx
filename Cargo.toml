@@ -30,6 +30,7 @@ targets = ["thumbv7em-none-eabihf"]
 [dependencies]
 cortex-m = "^0.6.2"
 cortex-m-rt = { version = "^0.6.12" }
+embedded-timeout-macros = { version = "0.3.0" }
 heapless = { version="0.5.6", default_features=true }
 
 # move to dev dependencies

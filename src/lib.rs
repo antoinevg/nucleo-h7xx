@@ -45,6 +45,24 @@ static NUCLEO_BOARD: () = ();
 static mut BOARD: Option<Board> = None;
 
 
+// - types --------------------------------------------------------------------
+
+#[allow(non_snake_case)]
+pub struct DevicePeripherals {
+    pub TIM1: hal::device::TIM1,
+    pub TIM2: hal::device::TIM2,
+    pub TIM4: hal::device::TIM4,
+    pub TIM6: hal::device::TIM6,
+    pub TIM12: hal::device::TIM12,
+    pub TIM13: hal::device::TIM13,
+    pub TIM14: hal::device::TIM14,
+    pub TIM15: hal::device::TIM15,
+    pub TIM16: hal::device::TIM16,
+    pub TIM17: hal::device::TIM17,
+    // TODO
+}
+
+
 // - Board --------------------------------------------------------------------
 
 #[allow(non_snake_case)]
@@ -53,6 +71,7 @@ pub struct Board<'a> {
     pub ccdr_peripheral: Option<hal::rcc::rec::PeripheralREC>,
     pub user_leds: led::UserLeds,
     pub pins: Option<pin::Pins>,
+    pub device_peripherals: Option<DevicePeripherals>,
     pub USART1: usart::Interface<'a>,
 
     _marker: core::marker::PhantomData<&'a ()>,
@@ -141,6 +160,19 @@ impl<'a> Board<'a> {
             }),
             USART1: usart1_interface,
 
+            device_peripherals: Some(DevicePeripherals {
+                TIM1: dp.TIM1,
+                TIM2: dp.TIM2,
+                TIM4: dp.TIM4,
+                TIM6: dp.TIM6,
+                TIM12: dp.TIM12,
+                TIM13: dp.TIM13,
+                TIM14: dp.TIM14,
+                TIM15: dp.TIM15,
+                TIM16: dp.TIM16,
+                TIM17: dp.TIM17,
+            }),
+
             _marker: core::marker::PhantomData
         }
     }
@@ -152,6 +184,11 @@ impl<'a> Board<'a> {
 
     pub unsafe fn take_ccdr_peripheral(&mut self) -> hal::rcc::rec::PeripheralREC {
         let p = core::ptr::replace(&mut self.ccdr_peripheral, None);
+        p.unwrap()
+    }
+
+    pub unsafe fn take_device_peripherals(&mut self) -> DevicePeripherals {
+        let p = core::ptr::replace(&mut self.device_peripherals, None);
         p.unwrap()
     }
 }
