@@ -46,7 +46,7 @@ impl HseCrystal for rcc::Rcc {
 ///                      &dp.SYSCFG);
 /// ```
 pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccdr {
-    let pwrcfg = pwr.vos0(syscfg).freeze();
+    let pwrcfg = pwr.smps().vos0(syscfg).freeze();
     rcc//.use_hse_crystal()  // TODO
        .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
        .sys_ck(480.mhz())                                // system clock @ 480 MHz
