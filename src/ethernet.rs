@@ -130,12 +130,28 @@ impl<'a> Interface<'a> {
         }
     }
 
-    /// Destructor
-    ///
-    /// Implements: [C-FREE](https://docs.rust-embedded.org/book/design-patterns/hal/interoperability.html#c-free)
     pub unsafe fn free(mut self) -> (Pins, hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>) {
-        let lan8742a = core::ptr::replace(&mut self.lan8742a, None);
-        (self.pins, lan8742a.unwrap())
+        // halt interrupts
+        let eth_dma = &*pac::ETHERNET_DMA::ptr();
+        eth_dma.dmacier.modify(|_, w|
+                               w.nie().clear_bit()  // normal interrupt summary enable
+                               .rie().clear_bit()   // receive interrupt enable
+                               .tie().clear_bit()   // transmit interrupt enable
+        );
+        cortex_m::peripheral::NVIC::mask(pac::Interrupt::ETH);
+
+        // reclaim any objects used to create this structure
+        let owned_resources = (
+            self.pins,
+            core::ptr::replace(&mut self.lan8742a, None).unwrap(),
+        );
+
+        // clean out static global singleton
+        cortex_m::interrupt::free(|cs| {
+            ETHERNET_MUTEX.borrow(cs).replace(None);
+        });
+
+        owned_resources
     }
 
     pub fn start(
