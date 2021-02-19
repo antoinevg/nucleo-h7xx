@@ -51,7 +51,7 @@ pub static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
 // - statically allocated storage ---------------------------------------------
 
-pub static mut ETHERNET_STORAGE: Storage = Storage::new();
+static mut ETHERNET_STORAGE: Storage = Storage::new();
 static mut ETHERNET_SOCKETS_STORAGE: Vec<UdpSocketStorage, heapless::consts::U8>
     = Vec(heapless::i::Vec::new());
 
@@ -97,6 +97,16 @@ impl<'a> UdpSocketStorage<'a> {
 }
 
 
+// - Error types --------------------------------------------------------------
+
+#[derive(Debug)]
+pub enum Error {
+    Unknown,
+    TimedOut,
+    ToDo,
+}
+
+
 // - ethernet::Interface ------------------------------------------------------
 
 pub struct Interface<'a> {
@@ -118,6 +128,14 @@ impl<'a> Interface<'a> {
             sockets: None,
             _marker: core::marker::PhantomData,
         }
+    }
+
+    /// Destructor
+    ///
+    /// Implements: [C-FREE](https://docs.rust-embedded.org/book/design-patterns/hal/interoperability.html#c-free)
+    pub unsafe fn free(mut self) -> (Pins, hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>) {
+        let lan8742a = core::ptr::replace(&mut self.lan8742a, None);
+        (self.pins, lan8742a.unwrap())
     }
 
     pub fn start(
@@ -233,7 +251,7 @@ impl<'a> Interface<'a> {
             = ethernet::phy::LAN8742A::new(eth_mac.set_phy_addr(0));
         lan8742a.phy_reset();
         lan8742a.phy_init();
-        while !lan8742a.poll_link() { } // TODO expose as method
+        while !self.poll_link() { } // TODO implement a time-out
 
         // enable ethernet interrupt
         let cp = unsafe { &mut pac::CorePeripherals::steal() };
