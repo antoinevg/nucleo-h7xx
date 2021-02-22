@@ -47,9 +47,10 @@ impl HseCrystal for rcc::Rcc {
 /// ```
 pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccdr {
     let pwrcfg = pwr.smps().vos0(syscfg).freeze();
-    rcc//.use_hse_crystal()  // TODO
+    rcc.sys_ck(480.mhz())                                // system clock @ 480 MHz
        .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
-       .sys_ck(480.mhz())                                // system clock @ 480 MHz
+       .pll1_r_ck(480.mhz())                             // for TRACECLK - TODO feature gate it for ITM
        .pll3_p_ck(PLL3_P)
+       //.use_hse_crystal()  // TODO
        .freeze(pwrcfg, syscfg)
 }
