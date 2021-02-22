@@ -37,6 +37,7 @@ heapless = { version = "0.5.6", default_features = true }
 # move to dev dependencies
 panic-semihosting = { version = "0.5.3" }
 cortex-m-semihosting = { version = "0.3.5" }
+panic-itm = "0.4.2"
 nb = "1.0.0"
 
 # - select version of stm32h7xx-hal to use
@@ -59,21 +60,21 @@ default-features = false
 features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
 #optional = true
 
-[dependencies.num]
-version = "0.3.1"
-default-features = false
-features = [ "libm" ]
-optional = true
+# [dependencies.num]
+# version = "0.3.1"
+# default-features = false
+# features = [ "libm" ]
+# optional = true
 
-[dependencies.num-derive]
-version = "0.3.3"
-default-features = false
-optional = true
+# [dependencies.num-derive]
+# version = "0.3.3"
+# default-features = false
+# optional = true
 
-[dependencies.num-traits]
-version = "0.2.14"
-default-features = false
-optional = true
+# [dependencies.num-traits]
+# version = "0.2.14"
+# default-features = false
+# optional = true
 
 
 # - dev dependencies ----------------------------------------------------------
@@ -86,7 +87,11 @@ jacktrip = { path = "../jacktrip_rs.git", default-features = false }
 
 [features]
 default = []
-uses_num = [ "num", "num-derive", "num-traits" ]
+#uses_num = [ "num", "num-derive", "num-traits" ]
+# features for examples
+log-itm = []
+#log-rtt = []
+log-semihosting = []
 
 
 # - profiles ------------------------------------------------------------------
