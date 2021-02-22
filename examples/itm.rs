@@ -6,7 +6,6 @@ use panic_itm as _;
 use cortex_m::iprintln;
 
 use nucleo_h745zi as nucleo;
-use nucleo::itm;
 use nucleo::loggit;
 use nucleo::led::Led;
 
@@ -16,17 +15,10 @@ fn main() -> ! {
     // - board setup ----------------------------------------------------------
 
     let board = nucleo::Board::take().unwrap();
-    let clocks = &board.clocks;
 
 
-    // - enable itm -----------------------------------------------------------
+    // - test iprintln! -------------------------------------------------------
 
-    let swo_frequency = 2_000_000;
-    unsafe {
-        let mut cp = cortex_m::Peripherals::steal();
-        let dp = nucleo::hal::pac::Peripherals::steal();
-        itm::enable_itm(&mut cp.DCB, &dp.DBGMCU, &mut cp.ITM, clocks.c_ck().0, swo_frequency);
-    }
     let itm = unsafe { &mut *cortex_m::peripheral::ITM::ptr() };
     iprintln!(&mut itm.stim[0], "Hello itm example!");
 

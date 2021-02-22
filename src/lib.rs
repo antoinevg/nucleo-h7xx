@@ -27,7 +27,7 @@ pub mod pin;
 pub mod timer;
 pub mod usart;
 
-// TODO proper logging with compile-time feature selection of: semihosting/itm/rtt
+#[cfg(any(feature = "itm"))]
 pub mod itm;
 
 
@@ -111,7 +111,16 @@ impl<'a> Board<'a> {
                                                      rcc,
                                                      &dp.SYSCFG);
 
-        // TODO feature-gate to enable itm
+        // enable itm if the feature is selected
+        #[cfg(any(feature = "itm"))]
+        unsafe {
+            let swo_frequency = 2_000_000;
+            itm::enable_itm(&mut cp.DCB,
+                            &dp.DBGMCU,
+                            &mut cp.ITM,
+                            ccdr.clocks.c_ck().0,
+                            swo_frequency);
+        }
 
         // configure cpu
         cp.SCB.invalidate_icache();
