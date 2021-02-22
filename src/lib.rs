@@ -28,10 +28,7 @@ pub mod timer;
 pub mod usart;
 
 // TODO proper logging with compile-time feature selection of: semihosting/itm/rtt
-//pub mod itm;
-//#[macro_use]
-//pub mod itm_macros;
-use panic_semihosting as _;
+pub mod itm;
 
 
 // - global static state ------------------------------------------------------
@@ -113,6 +110,8 @@ impl<'a> Board<'a> {
         let ccdr: hal::rcc::Ccdr = clocks::configure(dp.PWR.constrain(),
                                                      rcc,
                                                      &dp.SYSCFG);
+
+        // TODO feature-gate to enable itm
 
         // configure cpu
         cp.SCB.invalidate_icache();

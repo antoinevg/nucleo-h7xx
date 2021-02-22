@@ -114,7 +114,7 @@ debug = true
 # - examples ------------------------------------------------------------------
 
 [[example]]
-name = "blinky_pac"
+name = "blinky_bsp"
 required-features = []
 
 [[example]]
@@ -122,9 +122,21 @@ name = "blinky_hal"
 required-features = []
 
 [[example]]
-name = "blinky_bsp"
+name = "blinky_pac"
+required-features = []
+
+#[[example]]
+#name = "button"
+#required-features = []
+
+[[example]]
+name = "ethernet"
 required-features = []
 
 [[example]]
-name = "button"
+name = "itm"
+required-features = []
+
+[[example]]
+name = "jacktrip"
 required-features = []
