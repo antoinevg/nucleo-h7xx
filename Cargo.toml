@@ -33,25 +33,15 @@ cortex-m-rt = { version = "^0.6.12" }
 embedded-timeout-macros = { version = "0.3.0" }
 void = { version = "1.0.2", default-features = false }
 heapless = { version = "0.5.6", default_features = true }
-
-# move to dev dependencies
-panic-semihosting = { version = "0.5.3" }
-cortex-m-semihosting = { version = "0.3.5" }
-panic-itm = "0.4.2"
 nb = "1.0.0"
-
-# - select version of stm32h7xx-hal to use
 
 [dependencies.stm32h7xx-hal]
 features = [ "stm32h747cm7", "rt", "ethernet" ]
 #version = "0.8.0"
 git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
 branch = "master"
-#git = "https://github.com/antoinevg/stm32h7xx-hal.git"
-#branch = "antoinevg/nucleo-h745zi"
-#path = "../forks/stm32h7xx-hal.git" # Do manually: git checkout antoinevg/nucleo-h745zi
 
-# - optional dependencies used by examples
+# - optional dependencies -----------------------------------------------------
 
 [dependencies.smoltcp]
 version = "0.7.0"
@@ -60,38 +50,26 @@ default-features = false
 features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
 #optional = true
 
-# [dependencies.num]
-# version = "0.3.1"
-# default-features = false
-# features = [ "libm" ]
-# optional = true
+# - dependencies for examples -------------------------------------------------
 
-# [dependencies.num-derive]
-# version = "0.3.3"
-# default-features = false
-# optional = true
-
-# [dependencies.num-traits]
-# version = "0.2.14"
-# default-features = false
-# optional = true
-
+[dependencies.jacktrip]
+path = "../jacktrip_rs.git"
+default-features = false
+optional = true
 
 # - dev dependencies ----------------------------------------------------------
 
 [dev-dependencies]
-jacktrip = { path = "../jacktrip_rs.git", default-features = false }
+cortex-m-semihosting = { version = "0.3.5" }
+panic-semihosting = { version = "0.5.3" }
+panic-itm = { version = "0.4.2" }
 
 
 # - features ------------------------------------------------------------------
 
 [features]
 default = []
-#uses_num = [ "num", "num-derive", "num-traits" ]
-# features for examples
-log-itm = []
-#log-rtt = []
-log-semihosting = []
+itm = []
 
 
 # - profiles ------------------------------------------------------------------
@@ -135,8 +113,8 @@ required-features = []
 
 [[example]]
 name = "itm"
-required-features = []
+required-features = [ "itm" ]
 
 [[example]]
 name = "jacktrip"
-required-features = []
+required-features = [ "jacktrip" ]
