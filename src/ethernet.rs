@@ -2,8 +2,6 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-use cortex_m_semihosting::hprintln;
-
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicU32, Ordering};
 
@@ -177,7 +175,6 @@ impl<'a> Interface<'a> {
                 timeout_timer
             },
             Err(e) => {
-                hprintln!("Failed to bring up ethernet interface: {:?}", e).unwrap();
                 return Err(e);
             }
         };
@@ -198,7 +195,6 @@ impl<'a> Interface<'a> {
             if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
                 f(ethernet_interface)
             } else {
-                hprintln!("Ethernet interface has not been started").unwrap();
                 panic!("Ethernet interface has not been started");
             }
         })
@@ -242,7 +238,6 @@ impl<'a> Interface<'a> {
             &mut timeout_timer,
             {
                 if lan8742a.poll_link() {
-                    hprintln!("Ethernet link is up").unwrap();
                     Ok(())
                 } else {
                     Err(nb::Error::WouldBlock)
@@ -252,7 +247,6 @@ impl<'a> Interface<'a> {
         match result {
             Ok(()) => (),
             Err(TimeoutError::Timeout) | Err(_) => {
-                hprintln!("Ethernet timed out while waiting for link to come up").unwrap();
                 return Err(Error::LinkTimedOut);
             },
         }
@@ -308,7 +302,10 @@ impl<'a> Interface<'a> {
             },
             Err(smoltcp::Error::Exhausted) => (),
             Err(smoltcp::Error::Unrecognized) => (),
-            Err(e) => hprintln!("poll {:?}", e).unwrap(),
+            Err(e) => {
+                //hprintln!("poll {:?}", e).unwrap(),
+                // TODO return this as an error
+            }
         };
     }
 
