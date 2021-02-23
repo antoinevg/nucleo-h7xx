@@ -3,9 +3,6 @@
 
 use panic_semihosting as _;
 
-use cortex_m_rt::entry;
-use cortex_m::asm;
-
 use nucleo_h745zi::hal;
 use hal::{pac, prelude::*};
 use hal::rcc::PllConfigStrategy;
@@ -14,7 +11,7 @@ use hal::hal as embedded_hal;
 use embedded_hal::digital::v2::{OutputPin, ToggleableOutputPin};
 
 
-#[entry]
+#[cortex_m_rt::entry]
 fn main() -> ! {
     let dp = pac::Peripherals::take().unwrap();
 
@@ -38,7 +35,7 @@ fn main() -> ! {
     loop {
         loop {
             led_user.toggle().unwrap();
-            asm::delay(480_000_000);
+            cortex_m::asm::delay(480_000_000);
         }
     }
 }
