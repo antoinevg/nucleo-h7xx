@@ -28,8 +28,8 @@ targets = ["thumbv7em-none-eabihf"]
 # - dependencies --------------------------------------------------------------
 
 [dependencies]
-cortex-m = "^0.6.2"
-cortex-m-rt = { version = "^0.6.12" }
+cortex-m = "0.6.2"
+cortex-m-rt = { version = "0.6.13" }
 embedded-timeout-macros = { version = "0.3.0" }
 void = { version = "1.0.2", default-features = false }
 heapless = { version = "0.5.6", default_features = true }
@@ -60,16 +60,25 @@ optional = true
 # - dev dependencies ----------------------------------------------------------
 
 [dev-dependencies]
+cfg-if = "1.0.0"
+panic-halt = "0.2.0"
 cortex-m-semihosting = { version = "0.3.5" }
 panic-semihosting = { version = "0.5.3" }
 panic-itm = { version = "0.4.2" }
+rtt-target = { version = "0.2.2", features = ["cortex-m"] }
+panic-rtt-target = { version = "0.1.1", features = ["cortex-m"] }
+cortex-m-log = { version = "0.7.0", features = ["itm", "semihosting", "log-integration"] }
+log = "0.4.14"
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 
 
 # - features ------------------------------------------------------------------
 
 [features]
 default = []
-itm = []
+log-semihosting = []
+log-itm = []
+log-rtt = []
 
 
 # - profiles ------------------------------------------------------------------
@@ -113,7 +122,7 @@ required-features = []
 
 [[example]]
 name = "itm"
-required-features = [ "itm" ]
+required-features = [ "log-itm" ]
 
 [[example]]
 name = "jacktrip"
