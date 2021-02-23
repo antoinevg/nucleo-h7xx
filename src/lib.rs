@@ -27,7 +27,7 @@ pub mod pin;
 pub mod timer;
 pub mod usart;
 
-#[cfg(any(feature = "itm"))]
+#[cfg(any(feature = "log-itm"))]
 pub mod itm;
 
 
@@ -112,7 +112,7 @@ impl<'a> Board<'a> {
                                                      &dp.SYSCFG);
 
         // enable itm if the feature is selected
-        #[cfg(any(feature = "itm"))]
+        #[cfg(any(feature = "log-itm"))]
         unsafe {
             let swo_frequency = 2_000_000;
             itm::enable_itm(&mut cp.DCB,

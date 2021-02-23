@@ -2,12 +2,15 @@
 #![no_std]
 
 use cortex_m_rt::entry;
-use panic_itm as _;
+
 use cortex_m::iprintln;
 
 use nucleo_h745zi as nucleo;
 use nucleo::loggit;
 use nucleo::led::Led;
+
+use log::{debug, error, info};
+mod utilities;
 
 
 #[entry]
@@ -15,12 +18,16 @@ fn main() -> ! {
     // - board setup ----------------------------------------------------------
 
     let board = nucleo::Board::take().unwrap();
-
+    utilities::logger::init();
 
     // - test iprintln! -------------------------------------------------------
 
     let itm = unsafe { &mut *cortex_m::peripheral::ITM::ptr() };
     iprintln!(&mut itm.stim[0], "Hello itm example!");
+
+    info!("Hello itm example!");
+    debug!("Hello itm example!");
+    error!("Hello itm example!");
 
 
     // - leds -----------------------------------------------------------------
