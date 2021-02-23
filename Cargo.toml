@@ -28,7 +28,7 @@ targets = ["thumbv7em-none-eabihf"]
 # - dependencies --------------------------------------------------------------
 
 [dependencies]
-cortex-m = "0.6.2"
+cortex-m = "0.6.4"
 cortex-m-rt = { version = "0.6.13" }
 embedded-timeout-macros = { version = "0.3.0" }
 void = { version = "1.0.2", default-features = false }
