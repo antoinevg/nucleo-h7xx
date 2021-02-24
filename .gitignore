@@ -3,5 +3,5 @@
 Cargo.lock
 
 # misc
-Makefile
+/Makefile
 TODO.md

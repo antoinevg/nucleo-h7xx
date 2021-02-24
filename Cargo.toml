@@ -26,6 +26,14 @@ features = [ ]
 targets = ["thumbv7em-none-eabihf"]
 
 
+# - workspace -----------------------------------------------------------------
+
+[workspace]
+members = [
+    "testsuite"
+]
+
+
 # - dependencies --------------------------------------------------------------
 
 [dependencies]
