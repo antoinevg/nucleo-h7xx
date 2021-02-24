@@ -28,18 +28,19 @@ targets = ["thumbv7em-none-eabihf"]
 # - dependencies --------------------------------------------------------------
 
 [dependencies]
-cortex-m = "0.6.4"
-cortex-m-rt = { version = "0.6.13" }
+cortex-m = "^0.7.1"
+cortex-m-rt = { version = "^0.6.13" }
 embedded-timeout-macros = { version = "0.3.0" }
-void = { version = "1.0.2", default-features = false }
-heapless = { version = "0.5.6", default_features = true }
+heapless = { version = "^0.6.0", default_features = true }
 nb = "1.0.0"
+void = { version = "1.0.2", default-features = false }
+stm32h7xx-hal = { git = "https://github.com/stm32-rs/stm32h7xx-hal.git", branch = "master", features = [ "stm32h747cm7", "rt", "ethernet" ] }
 
-[dependencies.stm32h7xx-hal]
-features = [ "stm32h747cm7", "rt", "ethernet" ]
+#[dependencies.stm32h7xx-hal]
+#features = [ "stm32h747cm7", "rt", "ethernet" ]
 #version = "0.8.0"
-git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
-branch = "master"
+#git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
+#branch = "master"
 
 # - optional dependencies -----------------------------------------------------
 
@@ -61,15 +62,15 @@ optional = true
 
 [dev-dependencies]
 cfg-if = "1.0.0"
-panic-halt = "0.2.0"
-cortex-m-semihosting = { version = "0.3.5" }
-panic-semihosting = { version = "0.5.3" }
-panic-itm = { version = "0.4.2" }
-rtt-target = { version = "0.2.2", features = ["cortex-m"] }
-panic-rtt-target = { version = "0.1.1", features = ["cortex-m"] }
-cortex-m-log = { version = "0.7.0", features = ["itm", "semihosting", "log-integration"] }
+cortex-m-log = { version = "~0.7.0", features = ["itm", "semihosting", "log-integration"] }
+cortex-m-semihosting = { version = "~0.3.5" }
+lazy_static = { version = "~1.4.0", features = ["spin_no_std"] }
 log = "0.4.14"
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+panic-halt = "0.2.0"
+panic-itm = { version = "~0.4.2" }
+panic-rtt-target = { version = "~0.1.1", features = ["cortex-m"] }
+panic-semihosting = { version = "~0.5.3" }
+rtt-target = { version = "~0.2.2", features = ["cortex-m"] }
 
 
 # - features ------------------------------------------------------------------
