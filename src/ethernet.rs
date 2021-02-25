@@ -207,11 +207,6 @@ impl<'a> Interface<'a> {
           ccdr_clocks: &hal::rcc::CoreClocks,
           mut timeout_timer: Timer<pac::TIM17>) -> Result<Timer<pac::TIM17>, Error> {
 
-        assert_eq!(ccdr_clocks.hclk().0,  240_000_000); // HCLK 240MHz
-        assert_eq!(ccdr_clocks.pclk1().0, 120_000_000); // PCLK 120MHz
-        assert_eq!(ccdr_clocks.pclk2().0, 120_000_000); // PCLK 120MHz
-        assert_eq!(ccdr_clocks.pclk4().0, 120_000_000); // PCLK 120MHz
-
         let dp = unsafe { pac::Peripherals::steal() };
         let ethernet_address = EthernetAddress::from_bytes(mac_address);
         let (eth_dma, eth_mac) = unsafe {

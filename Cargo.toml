@@ -28,10 +28,11 @@ targets = ["thumbv7em-none-eabihf"]
 
 # - workspace -----------------------------------------------------------------
 
-[workspace]
-members = [
-    "testsuite"
-]
+# TODO Workspace feature is blocked: https://github.com/rust-lang/cargo/issues/7004
+#[workspace]
+#members = [
+#    "testsuite"
+#]
 
 
 # - dependencies --------------------------------------------------------------

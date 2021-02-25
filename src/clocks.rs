@@ -54,3 +54,44 @@ pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccd
        //.use_hse_crystal()  // TODO
        .freeze(pwrcfg, syscfg)
 }
+
+
+#[cfg(any(feature = "log-itm"))]
+pub fn log_clocks(clocks: &hal::rcc::CoreClocks) {
+    use crate::loggit;
+
+    loggit!("AHB1,2,3,4 hclk: {}", clocks.hclk().0);
+    loggit!("AXI aclk: {}", clocks.aclk().0);
+    loggit!("APB1 pclk1: {}", clocks.pclk1().0);
+    loggit!("APB1 ppre1: {}", clocks.ppre1());
+    loggit!("APB2 pclk2: {}", clocks.pclk2().0);
+    loggit!("APB2 ppre2: {}", clocks.ppre2());
+    loggit!("APB3 pclk3: {}", clocks.pclk3().0);
+    loggit!("APB3 ppre3: {}", clocks.ppre3());
+    loggit!("APB4 pclk4: {}", clocks.pclk4().0);
+    loggit!("APB4 ppre4: {}", clocks.ppre4());
+
+    loggit!("csi_ck: {}", clocks.csi_ck().unwrap_or(0.hz()).0);
+    loggit!("hsi_ck: {}", clocks.hsi_ck().unwrap_or(0.hz()).0);
+    loggit!("hsi48_ck: {}", clocks.hsi48_ck().unwrap_or(0.hz()).0);
+    loggit!("per_ck: {}", clocks.per_ck().unwrap_or(0.hz()).0);
+    loggit!("hse_ck: {}", clocks.hse_ck().unwrap_or(0.hz()).0);
+    loggit!("lsi_ck: {}", clocks.lsi_ck().unwrap_or(0.hz()).0);
+    loggit!("mco1_ck: {}", clocks.mco1_ck().unwrap_or(0.hz()).0);
+    loggit!("mco2_ck: {}", clocks.mco2_ck().unwrap_or(0.hz()).0);
+    loggit!("pll1_p_ck: {}", clocks.pll1_p_ck().unwrap_or(0.hz()).0);
+    loggit!("pll1_q_ck: {}", clocks.pll1_q_ck().unwrap_or(0.hz()).0);
+    loggit!("pll1_r_ck: {}", clocks.pll1_r_ck().unwrap_or(0.hz()).0);
+    loggit!("pll2_p_ck: {}", clocks.pll2_p_ck().unwrap_or(0.hz()).0);
+    loggit!("pll2_q_ck: {}", clocks.pll2_q_ck().unwrap_or(0.hz()).0);
+    loggit!("pll2_r_ck: {}", clocks.pll2_r_ck().unwrap_or(0.hz()).0);
+    loggit!("pll3_p_ck: {}", clocks.pll3_p_ck().unwrap_or(0.hz()).0);
+    loggit!("pll3_q_ck: {}", clocks.pll3_q_ck().unwrap_or(0.hz()).0);
+    loggit!("pll3_r_ck: {}", clocks.pll3_r_ck().unwrap_or(0.hz()).0);
+
+    loggit!("SCGU sys_ck: {}", clocks.sys_ck().0);
+    loggit!("SCGU sysclk: {}", clocks.sysclk().0);
+    loggit!("APB1 timx_ker_ck: {}", clocks.timx_ker_ck().0);
+    loggit!("APB2 timy_ker_ck: {}", clocks.timy_ker_ck().0);
+    loggit!("Core c_ck: {}", clocks.c_ck().0);
+}

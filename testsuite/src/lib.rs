@@ -4,8 +4,6 @@ use panic_probe as _;         // panic handler
 use defmt_rtt as _;           // global logger
 use nucleo_h745zi as nucleo;  // bsp
 
-use nucleo::pac;
-
 
 // - panic handler ------------------------------------------------------------
 
@@ -15,8 +13,9 @@ fn panic() -> ! {
 }
 
 
-// - global initialization ----------------------------------------------------
+// - board initialization -----------------------------------------------------
 
-pub fn init(_dp: pac::Peripherals) -> () {
+pub fn init<'a>(board: &'a mut nucleo::Board<'a>) -> &'a mut nucleo::Board<'a> {
     defmt::debug!("initializing board");
+    board
 }
