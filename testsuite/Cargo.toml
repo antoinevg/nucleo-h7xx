@@ -5,8 +5,12 @@ publish = false
 edition = "2018"
 version = "0.1.0"
 
+[lib]
+name = "testsuite"
+test = false
+
 [[test]]
-name = "test"
+name = "unit"
 harness = false
 
 [dependencies]
