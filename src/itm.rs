@@ -5,7 +5,7 @@
 macro_rules! loggit {
     ($($arg:tt)*) => (
         let itm = unsafe { &mut *cortex_m::peripheral::ITM::ptr() };
-        iprintln!(&mut itm.stim[0], $($arg)*);
+        cortex_m::iprintln!(&mut itm.stim[0], $($arg)*);
     )
 }
 
