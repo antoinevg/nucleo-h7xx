@@ -30,6 +30,15 @@ pub mod usart;
 #[cfg(any(feature = "log-itm"))]
 pub mod itm;
 
+#[cfg(not(feature = "log-itm"))]
+#[macro_export]
+macro_rules! loggit {
+    ($($arg:tt)*) => (
+        cortex_m_semihosting::hprintln!($($arg)*);
+    )
+}
+
+
 
 // - global static state ------------------------------------------------------
 
