@@ -34,7 +34,7 @@ pub mod itm;
 #[macro_export]
 macro_rules! loggit {
     ($($arg:tt)*) => (
-        cortex_m_semihosting::hprintln!($($arg)*);
+        cortex_m_semihosting::hprintln!($($arg)*).unwrap();
     )
 }
 

@@ -8,11 +8,11 @@ break HardFault
 break rust_begin_unwind
 
 # semihosting support
-monitor arm semihosting enable
+#monitor arm semihosting enable
 
 # itm support
-#monitor tpiu config internal /tmp/itm.fifo uart off 480000000 2000000
-#monitor itm port 0 on
+monitor tpiu config internal /tmp/itm.fifo uart off 480000000 2000000
+monitor itm port 0 on
 
 info mem
 load

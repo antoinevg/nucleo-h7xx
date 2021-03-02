@@ -19,9 +19,9 @@ use smoltcp::storage::PacketMetadata;
 use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
 
-use jacktrip::Address;
-use jacktrip::driver::SocketDriver;
 use jacktrip::{Error, Result};
+use jacktrip::net::{Endpoint, Octets, Traits};
+use jacktrip::driver::SocketDriver;
 
 
 // - driver::lan8742a::Socket -------------------------------------------------
@@ -33,21 +33,23 @@ pub struct Socket <'a> {
 }
 
 impl<'a> SocketDriver for Socket<'a> {
-    fn bind(address: &str, port: u16) -> Result<Socket<'a>> {
-        //hprintln!("driver::lan8742a::Socket::bind -> {}:{}", address, port).unwrap();
+    fn bind(local: &Endpoint) -> Result<Socket<'a>> {
+        //hprintln!("driver::lan8742a::Socket::bind -> {:?}", local).unwrap();
 
-        let ip_address = parse_ip_address(address, [0_u8; 4])?;
-        let endpoint = IpEndpoint::new(Ipv4Address::from_bytes(&ip_address).into(), port);
+        let local = IpEndpoint::new(
+            Ipv4Address::from_bytes(&local.octets).into(),
+            local.port
+        );
 
         let result = nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
             let udp_socket_handle = ethernet_interface.new_udp_socket();
             let mut udp_socket =
                 ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(udp_socket_handle);
 
-            match udp_socket.bind(endpoint) {
+            match udp_socket.bind(local) {
                 Ok(()) => return Ok(udp_socket_handle),
                 Err(e) => {
-                    hprintln!("Failed to bind socket to endpoint: {:?}", endpoint).unwrap();
+                    hprintln!("Failed to bind socket to endpoint: {:?}", local).unwrap();
                     return Err(Error::ToDo);
                 }
             }
@@ -56,7 +58,7 @@ impl<'a> SocketDriver for Socket<'a> {
         let udp_socket_handle = match result {
             Ok(udp_socket_handle) => udp_socket_handle,
             Err(e) => {
-                hprintln!("Failed to bind socket to endpoint: {:?}", endpoint).unwrap();
+                hprintln!("Failed to bind socket to endpoint: {:?}", local).unwrap();
                 return Err(Error::ToDo);
             }
         };
@@ -68,11 +70,12 @@ impl<'a> SocketDriver for Socket<'a> {
         })
     }
 
-    fn connect(&mut self, address: &str, port: u16) -> Result<()> {
-        //hprintln!("driver::lan8742a::Socket::connect -> {}:{}", address, port).unwrap();
-
-        let ip_address = parse_ip_address(address, [0_u8; 4])?;
-        self.remote = IpEndpoint::new(Ipv4Address::from_bytes(&ip_address).into(), port);
+    fn connect(&mut self, remote: &Endpoint) -> Result<()> {
+        //hprintln!("driver::lan8742a::Socket::connect -> {:?}", remote).unwrap();
+        self.remote = IpEndpoint::new(
+            Ipv4Address::from_bytes(&remote.octets).into(),
+            remote.port
+        );
 
         Ok(())
     }
@@ -117,23 +120,33 @@ impl<'a> SocketDriver for Socket<'a> {
         result
     }
 
-    fn receive(&mut self, buffer: &mut [u8]) -> Result<(usize, Address)> {
-        Ok((0, Address { host: "0.0.0.0", port: 0 }))
-    }
-}
+    fn receive(&mut self, buffer: &mut [u8]) -> Result<(usize, Endpoint)> {
+        let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
 
-
-// - helpers ------------------------------------------------------------------
-
-fn parse_ip_address(address: &str, mut octets: [u8; 4]) -> Result<[u8; 4]> {
-    for (n, octet) in address.split('.').enumerate() {
-        octets[n] = match str::parse(octet) {
-            Ok(b) => b,
-            Err(_) => {
-                hprintln!("Invalid ip address: {} -> '{}'", address, octet).unwrap();
-                return Err(Error::ToDo);
+        let result = nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+            let mut udp_socket =
+                ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(self.socket_handle);
+            if !udp_socket.can_recv() { // TODO should we block if there are no packets available in buffer?
+                return Err(smoltcp::Error::Exhausted);
             }
-        };
+            udp_socket.recv_slice(buffer)
+        });
+
+        match result {
+            Ok((bytes_received, endpoint)) => {
+                gpioe.bsrr.write(|w| w.br1().set_bit());
+                let mut octets = Octets::new();
+                octets.clone_from_slice(&endpoint.addr.as_bytes()[0..3]);
+                Ok((bytes_received, Endpoint {
+                    octets: octets,
+                    port: endpoint.port
+                }))
+            },
+            Err(e) => {
+                hprintln!("driver::lan8742a::Socket::recv error: {:?}", e).unwrap();
+                gpioe.bsrr.write(|w| w.bs1().set_bit());
+                Err(Error::Receive)
+            }
+        }
     }
-    Ok(octets)
 }

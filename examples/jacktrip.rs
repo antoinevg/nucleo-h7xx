@@ -26,6 +26,7 @@ use hal::pac;
 use pac::interrupt;
 
 use nucleo_h745zi as nucleo;
+use nucleo::loggit;
 
 use smoltcp;
 use smoltcp::iface::{
@@ -62,6 +63,18 @@ static mut JACKTRIP_INTERFACE: Option<jacktrip::Interface<driver::lan8742a::Sock
 
 #[entry]
 fn main() -> ! {
+    match run() {
+        Ok(_) => {},
+        e => {
+            //eprintln!("Fatal error: {:?}", e);
+            loggit!("Fatal error: {:?}", e);
+        }
+    }
+    loop {}
+}
+
+
+fn run() -> Result<(), jacktrip::Error> {
 
     let board = nucleo::Board::take().unwrap();
     let board_pins = unsafe { board.take_pins() };
@@ -106,7 +119,7 @@ fn main() -> ! {
     //let jacktrip_host = "192.168.20.114"; // chi
     let jacktrip_host = "192.168.20.115"; // zeta
     let jacktrip_port = 4464;
-    let mut jacktrip_interface = jacktrip::Interface::<driver::lan8742a::Socket>::new("192.168.20.99", 12345);
+    let mut jacktrip_interface = jacktrip::Interface::<driver::lan8742a::Socket>::new("192.168.20.99", 12345)?;
     match jacktrip_interface.connect(jacktrip_host, jacktrip_port) {
         Ok(()) => (),
         Err(e) => {
