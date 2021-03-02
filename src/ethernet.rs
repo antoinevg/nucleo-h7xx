@@ -228,7 +228,7 @@ impl<'a> Interface<'a> {
         lan8742a.phy_init();
 
         // wait for link to come up
-        timeout_timer.start(1000.ms());
+        timeout_timer.start(10_000.ms());
         let result: Result<(), TimeoutError<()>> = block_timeout!(
             &mut timeout_timer,
             {

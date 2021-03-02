@@ -64,11 +64,8 @@ static mut JACKTRIP_INTERFACE: Option<jacktrip::Interface<driver::lan8742a::Sock
 #[entry]
 fn main() -> ! {
     match run() {
-        Ok(_) => {},
-        e => {
-            //eprintln!("Fatal error: {:?}", e);
-            loggit!("Fatal error: {:?}", e);
-        }
+        Ok(_)  => {},
+        Err(e) => loggit!("Fatal error: {:?}", e)
     }
     loop {}
 }
