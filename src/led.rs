@@ -1,12 +1,9 @@
-#[cfg(not(feature = "audio_hal"))]
 pub use stm32h7xx_hal as hal;
-#[cfg(feature = "audio_hal")]
-pub use stm32h7xx_hal_dma as hal;
 
 use hal::hal as embedded_hal;
-
-use hal::gpio;
 use embedded_hal::digital::v2::OutputPin;
+
+use crate::pins::user_leds;
 
 
 // - traits -------------------------------------------------------------------
@@ -21,38 +18,12 @@ pub trait Led {
 }
 
 
-// - types --------------------------------------------------------------------
+// - UserLed ------------------------------------------------------------------
 
-pub struct Pins {
-    pub ld_1: gpio::gpiob::PB0<gpio::Output<gpio::PushPull>>,   // SB65=off, SB54=on    - TODO feature
-    //pub ld_1: gpio::gpioa::PA5<gpio::Output<gpio::PushPull>>,   // SB65=on,  SB54=off
-    pub ld_2: gpio::gpioe::PE1<gpio::Output<gpio::PushPull>>,
-    pub ld_3: gpio::gpiob::PB14<gpio::Output<gpio::PushPull>>,
-    // TODO
-}
+pub struct UserLed<PIN>(PIN);
 
-#[allow(non_snake_case)]
-pub struct UserLeds {
-    pub LD1: UserLed<gpio::gpiob::PB0<gpio::Output<gpio::PushPull>>>,   // green - TODO feature
-    //pub LD1: UserLed<gpio::gpioa::PA5<gpio::Output<gpio::PushPull>>>,   // green
-    pub LD2: UserLed<gpio::gpioe::PE1<gpio::Output<gpio::PushPull>>>,   // yellow
-    pub LD3: UserLed<gpio::gpiob::PB14<gpio::Output<gpio::PushPull>>>,  // red
-}
-
-impl UserLeds {
-    pub fn new(pins: Pins) -> Self {
-        Self {
-            LD1: UserLed(pins.ld_1),
-            LD2: UserLed(pins.ld_2),
-            LD3: UserLed(pins.ld_3),
-        }
-    }
-}
-
-pub struct UserLed<P>(P);
-
-impl<P> Led for UserLed<P>
-where P: OutputPin {
+impl<PIN> Led for UserLed<PIN>
+where PIN: OutputPin {
     fn on(&mut self) {
         match self.0.set_high() {
             Ok(()) => (),
@@ -66,4 +37,60 @@ where P: OutputPin {
             Err(_) => (),
         }
     }
+}
+
+
+// - UserLeds -----------------------------------------------------------------
+
+pub struct UserLedsAlt {
+    pub ld1: UserLed<user_leds::Ld1>,
+    pub ld2: UserLed<user_leds::Ld2>,
+    pub ld3: UserLed<user_leds::Ld3>,
+}
+
+
+impl UserLedsAlt {
+    pub fn new(pins: user_leds::Pins) -> Self {
+        Self {
+            ld1: UserLed(pins.ld1.into_push_pull_output()),
+            ld2: UserLed(pins.ld2.into_push_pull_output()),
+            ld3: UserLed(pins.ld3.into_push_pull_output()),
+        }
+    }
+}
+
+
+// - UserLedsGeneric ----------------------------------------------------------
+
+pub struct UserLedsGeneric<LD1, LD2, LD3> {
+    pub ld1: UserLed<LD1>,
+    pub ld2: UserLed<LD2>,
+    pub ld3: UserLed<LD3>,
+}
+
+
+impl <LD1, LD2, LD3>  UserLedsGeneric <LD1, LD2, LD3>
+where LD1: OutputPin,
+      LD2: OutputPin,
+      LD3: OutputPin {
+    fn new(pin1: LD1, pin2: LD2, pin3: LD3) -> Self {
+        Self {
+            ld1: UserLed(pin1),
+            ld2: UserLed(pin2),
+            ld3: UserLed(pin3),
+        }
+    }
+
+    pub fn new2(pins: user_leds::Pins) -> user_leds::Type {
+        UserLedsGeneric::new(pins.ld1.into_push_pull_output(),
+                         pins.ld2.into_push_pull_output(),
+                         pins.ld3.into_push_pull_output())
+    }
+
+}
+
+pub fn new(pins: user_leds::Pins) -> user_leds::Type {
+    UserLedsGeneric::new(pins.ld1.into_push_pull_output(),
+                     pins.ld2.into_push_pull_output(),
+                     pins.ld3.into_push_pull_output())
 }
