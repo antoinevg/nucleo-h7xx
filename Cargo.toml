@@ -44,29 +44,15 @@ embedded-timeout-macros = { version = "0.3.0" }
 heapless = { version = "^0.6.0", default_features = true }
 nb = "1.0.0"
 void = { version = "1.0.2", default-features = false }
-stm32h7xx-hal = { git = "https://github.com/stm32-rs/stm32h7xx-hal.git", branch = "master", features = [ "stm32h747cm7", "rt", "ethernet" ] }
 
-#[dependencies.stm32h7xx-hal]
-#features = [ "stm32h747cm7", "rt", "ethernet" ]
-#version = "0.8.0"
-#git = "https://github.com/stm32-rs/stm32h7xx-hal.git"
-#branch = "master"
-
-# - optional dependencies -----------------------------------------------------
+[dependencies.stm32h7xx-hal]
+version = "0.9.0"
+features = [ "stm32h747cm7", "rt", "ethernet" ]
 
 [dependencies.smoltcp]
 version = "0.7.0"
-#path = "../mirrors/smoltcp.git"
 default-features = false
 features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
-#optional = true
-
-# - dependencies for examples -------------------------------------------------
-
-[dependencies.jacktrip]
-path = "../jacktrip_rs.git"
-default-features = false
-optional = true
 
 # - dev dependencies ----------------------------------------------------------
 
@@ -82,11 +68,11 @@ panic-rtt-target = { version = "~0.1.1", features = ["cortex-m"] }
 panic-semihosting = { version = "~0.5.3" }
 rtt-target = { version = "~0.2.2", features = ["cortex-m"] }
 
-
 # - features ------------------------------------------------------------------
 
 [features]
 default = []
+led-1-pa5 = []  # SB65=on, SB54=off
 log-semihosting = []
 log-itm = []
 log-rtt = []
@@ -111,8 +97,13 @@ debug = true
 
 # - examples ------------------------------------------------------------------
 
+[dependencies.jacktrip]
+path = "../jacktrip_rs.git"
+default-features = false
+optional=true
+
 [[example]]
-name = "blinky_bsp"
+name = "blinky"
 required-features = []
 
 [[example]]
