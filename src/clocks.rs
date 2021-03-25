@@ -46,6 +46,12 @@ impl HseCrystal for rcc::Rcc {
 ///                      &dp.SYSCFG);
 /// ```
 pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccdr {
+    let mut cp = unsafe { cortex_m::Peripherals::steal() };
+    let dp = unsafe { pac::Peripherals::steal() };
+
+    // link SRAM3 power state to CPU1
+    dp.RCC.ahb2enr.modify(|_, w| w.sram3en().set_bit());
+
     let pwrcfg = pwr.smps().vos0(syscfg).freeze();
 
     #[cfg(not(feature = "log-itm"))]
@@ -67,14 +73,17 @@ pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccd
     #[cfg(any(feature = "log-itm"))]
     unsafe {
         let swo_frequency = 2_000_000;
-        let mut cp = cortex_m::Peripherals::steal();
-        let dp = pac::Peripherals::steal();
         crate::itm::enable_itm(&mut cp.DCB,
                                &dp.DBGMCU,
                                &mut cp.ITM,
                                ccdr.clocks.c_ck().0,
                                swo_frequency);
     }
+
+    // configure cpu
+    cp.SCB.invalidate_icache();
+    cp.SCB.enable_icache();
+    cp.DWT.enable_cycle_counter();
 
     ccdr
 }
