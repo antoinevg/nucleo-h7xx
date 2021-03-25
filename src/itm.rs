@@ -2,7 +2,7 @@
 
 
 #[macro_export]
-macro_rules! loggit {
+macro_rules! log_itm {
     ($($arg:tt)*) => (
         let itm = unsafe { &mut *cortex_m::peripheral::ITM::ptr() };
         cortex_m::iprintln!(&mut itm.stim[0], $($arg)*);
