@@ -6,9 +6,6 @@
 #![no_main]
 #![no_std]
 
-use panic_semihosting as _;
-use cortex_m_semihosting::hprintln;
-
 use core::sync::atomic::Ordering;
 
 use cortex_m_rt::entry;
@@ -40,10 +37,12 @@ use smoltcp::time::Instant;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
 
 
+
 // - modules ------------------------------------------------------------------
 
 mod driver;
 mod dsp;
+mod utilities;
 
 
 // - global constants ---------------------------------------------------------
@@ -65,7 +64,9 @@ static mut JACKTRIP_INTERFACE: Option<jacktrip::Interface<driver::lan8742a::Sock
 fn main() -> ! {
     match run() {
         Ok(_)  => {},
-        Err(e) => loggit!("Fatal error: {:?}", e)
+        Err(e) => {
+            loggit!("Fatal error: {:?}", e);
+        }
     }
     loop {}
 }
@@ -78,11 +79,12 @@ fn run() -> Result<(), jacktrip::Error> {
     let ccdr_peripheral = unsafe { board.take_ccdr_peripheral() };
     let ccdr_clocks = &board.clocks;
 
+    utilities::logger::init();
 
     // - test points ---------------------------------------------------------
 
-    /*let mut tp1 = board_pins.D51.into_push_pull_output().set_speed(VeryHigh);
-    let mut tp2 = board_pins.D52.into_push_pull_output().set_speed(VeryHigh);
+    /*let mut tp1 = board_pins.d51.into_push_pull_output().set_speed(VeryHigh);
+    let mut tp2 = board_pins.d52.into_push_pull_output().set_speed(VeryHigh);
     tp1.set_low().ok();
     tp2.set_low().ok();*/
 
@@ -100,7 +102,7 @@ fn run() -> Result<(), jacktrip::Error> {
                                                                  timeout_timer) {
         Ok(tim17) => tim17,
         Err(e) => {
-            hprintln!("Failed to start ethernet interface: {:?}", e).unwrap();
+            loggit!("Failed to start ethernet interface: {:?}", e);
             loop {}
         }
     };
@@ -120,8 +122,8 @@ fn run() -> Result<(), jacktrip::Error> {
     match jacktrip_interface.connect(jacktrip_host, jacktrip_port) {
         Ok(()) => (),
         Err(e) => {
-            hprintln!("Jacktrip interface failed to connect to remote: {}:{}",
-                      jacktrip_host, jacktrip_port).unwrap();
+            loggit!("Jacktrip interface failed to connect to remote: {}:{}",
+                    jacktrip_host, jacktrip_port);
             loop {}
         }
     };
@@ -129,7 +131,7 @@ fn run() -> Result<(), jacktrip::Error> {
     unsafe {
         JACKTRIP_INTERFACE = Some(jacktrip_interface);
     }
-    //hprintln!("connected to jacktrip server").unwrap();
+    //loggit!("connected to jacktrip server");
 
 
     // - timers ---------------------------------------------------------------
@@ -141,7 +143,7 @@ fn run() -> Result<(), jacktrip::Error> {
 
     // fs / num_frames = 48_000 / 64 = 750 Hz
     let frequency = (FS / num_frames as f32) - 1.;
-    //hprintln!("Timer frequency: {} / {} = {} Hz", FS, num_frames, frequency).unwrap();
+    //loggit!("Timer frequency: {} / {} = {} Hz", FS, num_frames, frequency);
     let mut timer = dp.TIM2.timer(u32::hz(frequency as u32), ccdr_peripheral.TIM2, &ccdr_clocks);
     timer.listen(hal::timer::Event::TimeOut);
     unsafe {
@@ -195,7 +197,7 @@ fn TIM2() {
     }
     match jacktrip_interface.send(&samples) } {
         Ok(_bytes_sent) => (),
-        Err(e) => hprintln!("oops: {:?}", e).unwrap(),
+        Err(e) => loggit!("oops: {:?}", e),
     }*/
 
     for _ in 0..NUM_FRAMES {
