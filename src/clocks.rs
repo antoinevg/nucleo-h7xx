@@ -47,12 +47,36 @@ impl HseCrystal for rcc::Rcc {
 /// ```
 pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccdr {
     let pwrcfg = pwr.smps().vos0(syscfg).freeze();
-    rcc.sys_ck(480.mhz())                                // system clock @ 480 MHz
-       .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
-       .pll1_r_ck(480.mhz())                             // for TRACECLK - TODO feature gate it for ITM
-       .pll3_p_ck(PLL3_P)
-       //.use_hse_crystal()  // TODO
-       .freeze(pwrcfg, syscfg)
+
+    #[cfg(not(feature = "log-itm"))]
+    let ccdr = rcc.sys_ck(480.mhz())                      // system clock @ 480 MHz
+        .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
+        .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
+        //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
+        .freeze(pwrcfg, syscfg);
+
+    #[cfg(any(feature = "log-itm"))]
+    let ccdr = rcc.sys_ck(480.mhz())                      // system clock @ 480 MHz
+        .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
+        .pll1_r_ck(480.mhz())                             // TRACECLK
+        .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
+        //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
+        .freeze(pwrcfg, syscfg);
+
+    // enable itm if the feature is selected
+    #[cfg(any(feature = "log-itm"))]
+    unsafe {
+        let swo_frequency = 2_000_000;
+        let mut cp = cortex_m::Peripherals::steal();
+        let dp = pac::Peripherals::steal();
+        crate::itm::enable_itm(&mut cp.DCB,
+                               &dp.DBGMCU,
+                               &mut cp.ITM,
+                               ccdr.clocks.c_ck().0,
+                               swo_frequency);
+    }
+
+    ccdr
 }
 
 
