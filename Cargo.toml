@@ -40,6 +40,7 @@ targets = ["thumbv7em-none-eabihf"]
 [dependencies]
 cortex-m = "^0.7.1"
 cortex-m-rt = { version = "^0.6.13" }
+cortex-m-semihosting = { version = "~0.3.5" }
 embedded-timeout-macros = { version = "0.3.0" }
 heapless = { version = "^0.6.0", default_features = true }
 nb = "1.0.0"
@@ -59,7 +60,6 @@ features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
 [dev-dependencies]
 cfg-if = "1.0.0"
 cortex-m-log = { version = "~0.7.0", features = ["itm", "semihosting", "log-integration"] }
-cortex-m-semihosting = { version = "~0.3.5" }
 lazy_static = { version = "~1.4.0", features = ["spin_no_std"] }
 log = "0.4.14"
 panic-halt = "0.2.0"

@@ -89,7 +89,6 @@ pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccd
 }
 
 
-#[cfg(any(feature = "log-itm"))]
 pub fn log_clocks(clocks: &hal::rcc::CoreClocks) {
     use crate::loggit;
 
