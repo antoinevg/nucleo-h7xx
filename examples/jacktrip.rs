@@ -73,11 +73,25 @@ fn main() -> ! {
 
 
 fn run() -> Result<(), jacktrip::Error> {
-
     let board = nucleo::Board::take().unwrap();
-    let board_pins = unsafe { board.take_pins() };
-    let ccdr_peripheral = unsafe { board.take_ccdr_peripheral() };
-    let ccdr_clocks = &board.clocks;
+
+    let dp = nucleo::pac::Peripherals::take().unwrap();
+
+    let ccdr = board.freeze_clocks(dp.PWR.constrain(),
+                                   dp.RCC.constrain(),
+                                   &dp.SYSCFG);
+
+    let pins = board.split_gpios(dp.GPIOA.split(ccdr.peripheral.GPIOA),
+                                 dp.GPIOB.split(ccdr.peripheral.GPIOB),
+                                 dp.GPIOC.split(ccdr.peripheral.GPIOC),
+                                 dp.GPIOD.split(ccdr.peripheral.GPIOD),
+                                 dp.GPIOE.split(ccdr.peripheral.GPIOE),
+                                 dp.GPIOF.split(ccdr.peripheral.GPIOF),
+                                 dp.GPIOG.split(ccdr.peripheral.GPIOG),
+                                 dp.GPIOH.split(ccdr.peripheral.GPIOH),
+                                 dp.GPIOI.split(ccdr.peripheral.GPIOI),
+                                 dp.GPIOJ.split(ccdr.peripheral.GPIOJ),
+                                 dp.GPIOK.split(ccdr.peripheral.GPIOK));
 
     utilities::logger::init();
 
@@ -91,14 +105,13 @@ fn run() -> Result<(), jacktrip::Error> {
 
     // - ethernet interface ---------------------------------------------------
 
-    let dp = unsafe { pac::Peripherals::steal() };
-    let timeout_timer = dp.TIM17.timer(100.hz(), ccdr_peripheral.TIM17, &ccdr_clocks);
+    let timeout_timer = dp.TIM17.timer(100.hz(), ccdr.peripheral.TIM17, &ccdr.clocks);
     let timeout_timer = nucleo::timer::CountDownTimer::new(timeout_timer);
-    let timeout_timer = match nucleo::ethernet::Interface::start(board_pins.ethernet,
+    let timeout_timer = match nucleo::ethernet::Interface::start(pins.ethernet,
                                                                  &MAC_LOCAL,
                                                                  &IP_LOCAL,
-                                                                 ccdr_peripheral.ETH1MAC,
-                                                                 &ccdr_clocks,
+                                                                 ccdr.peripheral.ETH1MAC,
+                                                                 &ccdr.clocks,
                                                                  timeout_timer) {
         Ok(tim17) => tim17,
         Err(e) => {
@@ -139,12 +152,12 @@ fn run() -> Result<(), jacktrip::Error> {
     let dp = unsafe { pac::Peripherals::steal() };
     let mut cp = unsafe { pac::CorePeripherals::steal() };
 
-    nucleo::ethernet::systick_init(&mut cp.SYST, &ccdr_clocks);  // 1ms tick
+    nucleo::ethernet::systick_init(&mut cp.SYST, &ccdr.clocks);  // 1ms tick
 
     // fs / num_frames = 48_000 / 64 = 750 Hz
     let frequency = (FS / num_frames as f32) - 1.;
     //loggit!("Timer frequency: {} / {} = {} Hz", FS, num_frames, frequency);
-    let mut timer = dp.TIM2.timer(u32::hz(frequency as u32), ccdr_peripheral.TIM2, &ccdr_clocks);
+    let mut timer = dp.TIM2.timer(u32::hz(frequency as u32), ccdr.peripheral.TIM2, &ccdr.clocks);
     timer.listen(hal::timer::Event::TimeOut);
     unsafe {
         cp.NVIC.set_priority(interrupt::TIM2, 1);

@@ -37,7 +37,7 @@ use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ip
 use heapless::Vec;
 
 use crate::timer::CountDownTimer as Timer;
-
+use crate::pins;
 
 // - global constants ---------------------------------------------------------
 
@@ -115,7 +115,7 @@ pub enum Error {
 // - ethernet::Interface ------------------------------------------------------
 
 pub struct Interface<'a> {
-    pins: Pins,
+    pins: self::Pins,
 
     lan8742a: Option<hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>>,
     interface: Option<EthernetInterface<'a, ethernet::EthernetDMA<'a>>>,
@@ -125,7 +125,7 @@ pub struct Interface<'a> {
 
 
 impl<'a> Interface<'a> {
-    fn new(pins: Pins) -> Self {
+    fn new(pins: self::Pins) -> Self {
         Self {
             pins: pins,
             lan8742a: None,
@@ -135,7 +135,7 @@ impl<'a> Interface<'a> {
         }
     }
 
-    pub unsafe fn free(mut self) -> (Pins, hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>) {
+    pub unsafe fn free(mut self) -> (pins::ethernet::Pins, hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>) {
         // halt interrupts
         let eth_dma = &*pac::ETHERNET_DMA::ptr();
         eth_dma.dmacier.modify(|_, w|
@@ -145,9 +145,19 @@ impl<'a> Interface<'a> {
         );
         cortex_m::peripheral::NVIC::mask(pac::Interrupt::ETH);
 
-        // reclaim any objects used to create this structure
+        // reclaim the objects used to create this structure
         let owned_resources = (
-            self.pins,
+            pins::ethernet::Pins {
+                ref_clk: self.pins.ref_clk.into_analog(),
+                md_io:   self.pins.md_io.into_analog(),
+                md_clk:  self.pins.md_clk.into_analog(),
+                crs:     self.pins.crs.into_analog(),
+                rx_d0:   self.pins.rx_d0.into_analog(),
+                rx_d1:   self.pins.rx_d1.into_analog(),
+                tx_en:   self.pins.tx_en.into_analog(),
+                tx_d0:   self.pins.tx_d0.into_analog(),
+                tx_d1:   self.pins.tx_d1.into_analog()
+            },
             core::ptr::replace(&mut self.lan8742a, None).unwrap(),
         );
 
@@ -159,12 +169,25 @@ impl<'a> Interface<'a> {
         owned_resources
     }
 
-    pub fn start(pins: Pins,
+    pub fn start(pins: pins::ethernet::Pins,
                  mac_address: &[u8; 6],
                  ip_address: &[u8; 4],
                  eth1mac: hal::rcc::rec::Eth1Mac,
                  ccdr_clocks: &hal::rcc::CoreClocks,
                  timeout_timer: Timer<pac::TIM17>) -> Result<Timer<pac::TIM17>, Error> {
+
+        let pins = self::Pins {
+            ref_clk: pins.ref_clk.into_alternate_af11().set_speed(VeryHigh),
+            md_io:   pins.md_io.into_alternate_af11().set_speed(VeryHigh),
+            md_clk:  pins.md_clk.into_alternate_af11().set_speed(VeryHigh),
+            crs:     pins.crs.into_alternate_af11().set_speed(VeryHigh),
+            rx_d0:   pins.rx_d0.into_alternate_af11().set_speed(VeryHigh),
+            rx_d1:   pins.rx_d1.into_alternate_af11().set_speed(VeryHigh),
+            tx_en:   pins.tx_en.into_alternate_af11().set_speed(VeryHigh),
+            tx_d0:   pins.tx_d0.into_alternate_af11().set_speed(VeryHigh),
+            tx_d1:   pins.tx_d1.into_alternate_af11().set_speed(VeryHigh)
+        };
+
         let mut interface = Interface::new(pins);
         let timeout_timer = match interface.up(mac_address,
                                                ip_address,
@@ -324,7 +347,7 @@ impl<'a> Interface<'a> {
 }
 
 
-// - ethernet::Pins -----------------------------------------------------------
+// - Pins ---------------------------------------------------------------------
 
 type AlternateFunction11 = hal::gpio::Alternate<hal::gpio::AF11>;
 
