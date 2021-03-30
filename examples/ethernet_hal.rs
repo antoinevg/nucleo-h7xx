@@ -2,7 +2,7 @@
 #![no_std]
 
 /// Simple ethernet example that will respond to icmp pings on
-/// `IP_LOCAL` and perioducally send a udp packet to
+/// `IP_LOCAL` and periodically send a udp packet to
 /// `IP_REMOTE:IP_REMOTE_PORT`
 ///
 /// Also see: https://github.com/stm32-rs/stm32h7xx-hal/blob/master/examples/ethernet-rtic-stm32h747i-disco.rs

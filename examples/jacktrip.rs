@@ -164,16 +164,15 @@ fn run() -> Result<(), jacktrip::Error> {
     // - main loop ------------------------------------------------------------
 
     loop {
-        let time = nucleo::ethernet::ATOMIC_TIME.load(Ordering::Relaxed);
         nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
             /*match ethernet_interface.poll_link() {
                 true => led_link.set_high().unwrap(),
                 _    => led_link.set_low().unwrap(),
             }*/
-            ethernet_interface.poll(time as i64);
+            ethernet_interface.poll();
         });
-        cortex_m::asm::wfi();
         // TODO https://docs.rs/smoltcp/0.7.0/smoltcp/iface/struct.EthernetInterface.html#method.poll_delay
+        cortex_m::asm::wfi();
     }
 }
 

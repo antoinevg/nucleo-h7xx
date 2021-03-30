@@ -305,7 +305,8 @@ impl<'a> Interface<'a> {
     }
 
     // poll ethernet interface
-    pub fn poll(&mut self, now: i64) {
+    pub fn poll(&mut self) {
+        let now = ATOMIC_TIME.load(Ordering::Relaxed);
         let timestamp = Instant::from_millis(now);
 
         // TODO handle Option properly
