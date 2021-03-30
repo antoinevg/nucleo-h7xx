@@ -11,7 +11,7 @@ use crate::pins;
 // versions of this crate as that would let you `take` the core
 // peripherals more than once (one per minor version)
 #[no_mangle]
-static NUCLEO_H745_BOARD: () = ();
+static NUCLEO_H7XX_BOARD: () = ();
 
 /// Set to `true` when `take` was called to make `Board` a singleton.
 static mut TAKEN: bool = false;

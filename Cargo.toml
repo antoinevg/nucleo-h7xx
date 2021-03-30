@@ -1,12 +1,12 @@
 [package]
-name = "nucleo-h745zi"
+name = "nucleo-h7xx"
 version = "0.1.0"
 authors = ["Antoine van Gelder <antoine@flowdsp.io>"]
 edition = "2018"
 license = "AGPL-3.0-or-later"
-description = "Board support crate for the STMicroelectronics Nucleo-H745zi development board"
-repository = "https://github.com/antoinevg/nucleo-h745zi"
-documentation = "https://github.com/antoinevg/nucleo-h745zi/wiki"
+description = "Board support crate for the STMicroelectronics STM32H7 Nucleo-144 boards."
+repository = "https://github.com/antoinevg/nucleo-h7xx"
+documentation = "https://github.com/antoinevg/nucleo-h7xx/wiki"
 categories = [
     "embedded",
     "hardware-support",
@@ -17,7 +17,11 @@ keywords = [
     "bsp",
     "stm32",
     "stm32h7xx",
+    "stm32h743",
     "stm32h745",
+    "nucleo",
+    "nucleo-h743zi",
+    "nucleo-h745zi",
 ]
 readme = "README.md"
 
@@ -81,18 +85,9 @@ log-rtt = []
 # - profiles ------------------------------------------------------------------
 
 [profile.dev]
-#opt-level = 0  # default: 0
-#opt-level = "s" # optimize for binary size
-#debug = true              # default: true
-#debug-assertions = false  # default: true
-#overflow-checks = false   # default: true
-#lto = "off"               # default: false
-#panic = "unwind"          # default: "unwind"
-#incremental = false       # default: true
 
 [profile.release]
 debug = true
-#opt-level = "s" #  optimize for binary size
 
 
 # - examples ------------------------------------------------------------------
@@ -108,10 +103,6 @@ required-features = []
 [[example]]
 name = "blinky_pac"
 required-features = []
-
-#[[example]]
-#name = "button"
-#required-features = []
 
 [[example]]
 name = "ethernet"

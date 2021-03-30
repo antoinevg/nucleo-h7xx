@@ -14,7 +14,7 @@ name = "unit"
 harness = false
 
 [dependencies]
-nucleo-h745zi = { path = ".." }
+nucleo-h7xx = { path = ".." }
 cortex-m = "^0.7.1"
 cortex-m-rt = "^0.6.13"
 defmt = "0.2.0"

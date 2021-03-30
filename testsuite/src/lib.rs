@@ -2,7 +2,7 @@
 
 use panic_probe as _;         // panic handler
 use defmt_rtt as _;           // global logger
-use nucleo_h745zi as nucleo;  // bsp
+use nucleo_h7xx as nucleo;    // bsp
 
 
 // - panic handler ------------------------------------------------------------

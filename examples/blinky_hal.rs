@@ -3,7 +3,7 @@
 
 use panic_semihosting as _;
 
-use nucleo_h745zi::hal;
+use nucleo_h7xx::hal;
 use hal::{pac, prelude::*};
 use hal::rcc::PllConfigStrategy;
 

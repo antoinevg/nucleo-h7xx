@@ -1,6 +1,6 @@
 #![deny(warnings)]
 
-//! Board support crate for nucleo-h745zi hardware
+//! Board support crate for STMicroElectronics STM32H7 Nucleo-144 boards
 //!
 //! # Usage - see examples/
 //! ```

@@ -4,7 +4,7 @@
 use panic_semihosting as _;
 use cortex_m_rt::entry;
 
-use nucleo_h745zi::hal::pac;
+use nucleo_h7xx::hal::pac;
 
 
 #[entry]

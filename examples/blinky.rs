@@ -4,7 +4,7 @@
 use panic_semihosting as _;
 use cortex_m_rt::entry;
 
-use nucleo_h745zi as nucleo;
+use nucleo_h7xx as nucleo;
 use nucleo::hal::prelude::*;
 use nucleo::led::Led;
 

@@ -9,7 +9,7 @@
 use cortex_m_rt::entry;
 use cortex_m;
 
-use nucleo_h745zi as nucleo;
+use nucleo_h7xx as nucleo;
 use nucleo::loggit;
 
 use nucleo::hal as hal;
