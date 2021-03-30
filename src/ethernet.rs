@@ -31,7 +31,7 @@ use smoltcp::iface::{
 use smoltcp::socket::{SocketHandle, SocketSet, SocketSetItem};
 use smoltcp::socket::{UdpSocket, UdpSocketBuffer, UdpPacketMetadata};
 use smoltcp::storage::PacketMetadata;
-use smoltcp::time::Instant;
+use smoltcp::time::{Duration, Instant};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
 
 use heapless::Vec;
@@ -135,7 +135,8 @@ impl<'a> Interface<'a> {
         }
     }
 
-    pub unsafe fn free(mut self) -> (pins::ethernet::Pins, hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>) {
+    pub unsafe fn free(mut self) -> (pins::ethernet::Pins,
+                                     hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>) {
         // halt interrupts
         let eth_dma = &*pac::ETHERNET_DMA::ptr();
         eth_dma.dmacier.modify(|_, w|
@@ -208,6 +209,15 @@ impl<'a> Interface<'a> {
                 ETHERNET_MUTEX.borrow(cs).replace(Some(interface));
             }
         });
+
+        // configure systick timer to 1ms
+        let syst = unsafe { &mut pac::CorePeripherals::steal().SYST };
+        let c_ck_mhz = ccdr_clocks.c_ck().0 / 1_000_000;
+        let syst_calib = 0x3E8;
+        syst.set_clock_source(cortex_m::peripheral::syst::SystClkSource::Core);
+        syst.set_reload((syst_calib * c_ck_mhz) - 1);
+        syst.enable_interrupt();
+        syst.enable_counter();
 
         Ok(timeout_timer)
     }
@@ -305,27 +315,19 @@ impl<'a> Interface<'a> {
     }
 
     // poll ethernet interface
-    pub fn poll(&mut self) {
-        let now = ATOMIC_TIME.load(Ordering::Relaxed);
-        let timestamp = Instant::from_millis(now);
+    pub fn poll(&mut self) -> Result<bool, smoltcp::Error> {
+        let timestamp = Instant::from_millis(self.now());
+        self.interface.as_mut().unwrap().poll(&mut self.sockets.as_mut().unwrap(), timestamp)
+    }
 
-        // TODO handle Option properly
-        match self.interface.as_mut().unwrap().poll(&mut self.sockets.as_mut().unwrap(), timestamp) {
-            Ok(result) => {
-                /*let gpioe = unsafe { &mut pac::Peripherals::steal().GPIOE };
-                if result { // packets were processed or emitted
-                    gpioe.bsrr.write(|w| w.br1().set_bit());
-                } else {
-                    gpioe.bsrr.write(|w| w.bs1().set_bit());
-                }*/
-            },
-            Err(smoltcp::Error::Exhausted) => (),
-            Err(smoltcp::Error::Unrecognized) => (),
-            Err(e) => {
-                //hprintln!("poll {:?}", e).unwrap(),
-                // TODO return this as an error
-            }
-        };
+    pub fn poll_delay(&mut self) -> Option<Duration> {
+        let timestamp = Instant::from_millis(self.now());
+        self.interface.as_mut().unwrap().poll_delay(&mut self.sockets.as_mut().unwrap(), timestamp)
+    }
+
+    /// returns an absolute time value in milliseconds
+    pub fn now(&self) -> i64 {
+        ATOMIC_TIME.load(Ordering::Relaxed).into()
     }
 
     pub fn new_udp_socket(&mut self) -> SocketHandle {
@@ -372,30 +374,11 @@ pub struct Pins {
 }
 
 
-// - systick configuration ----------------------------------------------------
-
-pub fn systick_init(syst: &mut pac::SYST, clocks: &hal::rcc::CoreClocks) {
-    let c_ck_mhz = clocks.c_ck().0 / 1_000_000;
-    let syst_calib = 0x3E8;
-    syst.set_clock_source(cortex_m::peripheral::syst::SystClkSource::Core);
-    syst.set_reload((syst_calib * c_ck_mhz) - 1);
-    syst.enable_interrupt();
-    syst.enable_counter();
-}
-
-
 // - interrupts and exceptions ------------------------------------------------
 
 #[interrupt]
 fn ETH() {
     unsafe { ethernet::interrupt_handler() };
-
-    /*let time = ATOMIC_TIME.load(Ordering::Relaxed);
-    cortex_m::interrupt::free(|cs| {
-        if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
-            ethernet_interface.poll(time as i64);
-        }
-    });*/
 }
 
 #[exception]

@@ -81,8 +81,8 @@ log-rtt = []
 # - profiles ------------------------------------------------------------------
 
 [profile.dev]
-#opt-level = 1  # default: 0
-opt-level = "s" # optimize for binary size
+#opt-level = 0  # default: 0
+#opt-level = "s" # optimize for binary size
 #debug = true              # default: true
 #debug-assertions = false  # default: true
 #overflow-checks = false   # default: true
@@ -96,11 +96,6 @@ debug = true
 
 
 # - examples ------------------------------------------------------------------
-
-[dependencies.jacktrip]
-path = "../jacktrip_rs.git"
-default-features = false
-optional=true
 
 [[example]]
 name = "blinky"
@@ -123,9 +118,9 @@ name = "ethernet"
 required-features = []
 
 [[example]]
-name = "itm"
-required-features = [ "log-itm" ]
+name = "ethernet_hal"
+required-features = []
 
 [[example]]
-name = "jacktrip"
-required-features = [ "jacktrip" ]
+name = "itm"
+required-features = [ "log-itm" ]

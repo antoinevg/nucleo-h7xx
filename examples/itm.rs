@@ -51,7 +51,7 @@ fn main() -> ! {
 
     // - leds -----------------------------------------------------------------
 
-    let mut user_leds = nucleo::led::UserLedsAlt::new(pins.user_leds);
+    let mut user_leds = nucleo::led::UserLeds::new(pins.user_leds);
 
 
     // - main loop ------------------------------------------------------------
