@@ -9,6 +9,17 @@ Rust `no_std`, `embedded_hal` board support package for STMicroElectronics [STM3
 * [NUCLEO-H745ZI](https://www.st.com/en/evaluation-tools/nucleo-h745zi-q.html): Tested
 
 
+# Getting Started
+
+```
+cargo install cargo-generate
+
+cargo generate \
+    --git https://github.com/antoinevg/hello-nucleo-h7xx \
+    --name your-project-name
+```
+
+
 # Status
 
 Work in progress.
