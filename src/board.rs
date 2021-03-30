@@ -58,7 +58,7 @@ impl Board {
         pins::Pins::new(gpioa, gpiob, gpioc, gpiod, gpioe, gpiof, gpiog)
     }
 
-    pub fn split_led_user(&self, pins: pins::user_leds::Pins) -> led::UserLedsAlt {
-        led::UserLedsAlt::new(pins)
+    pub fn split_led_user(&self, pins: pins::user_leds::Pins) -> led::UserLeds {
+        led::UserLeds::new(pins)
     }
 }

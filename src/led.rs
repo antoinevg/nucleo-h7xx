@@ -42,14 +42,14 @@ where PIN: OutputPin {
 
 // - UserLeds -----------------------------------------------------------------
 
-pub struct UserLedsAlt {
+pub struct UserLeds {
     pub ld1: UserLed<user_leds::Ld1>,
     pub ld2: UserLed<user_leds::Ld2>,
     pub ld3: UserLed<user_leds::Ld3>,
 }
 
 
-impl UserLedsAlt {
+impl UserLeds {
     pub fn new(pins: user_leds::Pins) -> Self {
         Self {
             ld1: UserLed(pins.ld1.into_push_pull_output()),
