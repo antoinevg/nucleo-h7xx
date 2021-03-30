@@ -1,39 +1,14 @@
 #![no_std]
 #![no_main]
 
-use testsuite as _;           // memory layout + panic handler + global logger
-use nucleo_h745zi as nucleo;  // bsp
-
-
-// - shared state -------------------------------------------------------------
-
-struct State {
-    flag: bool,
-    board: &'static mut nucleo::Board<'static>,
-
-}
-
-impl State {
-    fn init() -> State {
-        let board = defmt::unwrap!(nucleo::Board::take());
-        let board = testsuite::init(board);
-        State {
-            flag: true,
-            board: board,
-        }
-    }
-}
-
-
-// - tests --------------------------------------------------------------------
 
 #[defmt_test::tests]
 mod tests {
     use defmt::{assert, assert_eq};
 
     #[init]
-    fn init() -> super::State {
-        super::State::init()
+    fn init() -> testsuite::State {
+        testsuite::State::init()
     }
 
     #[test]
@@ -47,19 +22,19 @@ mod tests {
     }
 
     #[test]
-    fn assert_state(state: &mut super::State) {
+    fn assert_state(state: &mut testsuite::State) {
         assert!(state.flag);
         state.flag = false;
     }
 
     #[test]
-    fn assert_state_changed(state: &mut super::State) {
+    fn assert_state_changed(state: &mut testsuite::State) {
         assert_eq!(state.flag, false);
     }
 
     #[test]
-    fn assert_board_clocks(state: &mut super::State) {
-        let clocks = state.board.clocks;
+    fn assert_board_clocks(state: &mut testsuite::State) {
+        let clocks = state.clocks;
 
         assert_eq!(clocks.hclk().0,  240_000_000, "AHB1,2,3");
         assert_eq!(clocks.aclk().0,  240_000_000, "AXI");
@@ -82,7 +57,7 @@ mod tests {
         assert!(clocks.mco2_ck().is_none());
         assert_eq!(defmt::unwrap!(clocks.pll1_p_ck()).0, 480_000_000);
         assert!(clocks.pll1_q_ck().is_none());
-        assert_eq!(defmt::unwrap!(clocks.pll1_r_ck()).0, 480_000_000);
+        assert_eq!(defmt::unwrap!(clocks.pll1_r_ck()).0, 240_000_000);
         assert!(clocks.pll2_p_ck().is_none());
         assert!(clocks.pll2_q_ck().is_none());
         assert!(clocks.pll2_r_ck().is_none());

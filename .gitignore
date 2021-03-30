@@ -4,4 +4,7 @@ Cargo.lock
 
 # misc
 /Makefile
+RELEASE.md
 TODO.md
+reference/
+examples.off

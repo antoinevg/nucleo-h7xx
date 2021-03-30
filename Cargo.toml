@@ -24,6 +24,12 @@ keywords = [
     "nucleo-h745zi",
 ]
 readme = "README.md"
+exclude = [
+    "examples/*",
+    "testsuite/*",
+    "openocd.cfg",
+    "openocd.gdb",
+]
 
 [package.metadata.docs.rs]
 features = [ ]
