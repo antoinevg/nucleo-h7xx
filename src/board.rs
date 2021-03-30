@@ -1,6 +1,7 @@
 use stm32h7xx_hal as hal;
 
 use crate::clocks;
+use crate::led;
 use crate::pins;
 
 
@@ -10,7 +11,7 @@ use crate::pins;
 // versions of this crate as that would let you `take` the core
 // peripherals more than once (one per minor version)
 #[no_mangle]
-static NUCLEO_BOARD: () = ();
+static NUCLEO_H745_BOARD: () = ();
 
 /// Set to `true` when `take` was called to make `Board` a singleton.
 static mut TAKEN: bool = false;
@@ -52,40 +53,16 @@ impl Board {
                        gpioc: hal::gpio::gpioc::Parts,
                        gpiod: hal::gpio::gpiod::Parts,
                        gpioe: hal::gpio::gpioe::Parts,
-                       _gpiof: hal::gpio::gpiof::Parts,
+                       gpiof: hal::gpio::gpiof::Parts,
                        gpiog: hal::gpio::gpiog::Parts,
-                       _gpioh: hal::gpio::gpioh::Parts,
-                       _gpioi: hal::gpio::gpioi::Parts,
-                       _gpioj: hal::gpio::gpioj::Parts,
-                       _gpiok: hal::gpio::gpiok::Parts) -> pins::Pins {
-
-        pins::Pins {
-            d51: gpiod.pd7,
-            d52: gpiod.pd6,
-
-            ethernet: pins::ethernet::Pins {
-                ref_clk: gpioa.pa1,
-                md_io:   gpioa.pa2,
-                md_clk:  gpioc.pc1,
-                crs:     gpioa.pa7,
-                rx_d0:   gpioc.pc4,
-                rx_d1:   gpioc.pc5,
-                tx_en:   gpiog.pg11,
-                tx_d0:   gpiog.pg13,
-                tx_d1:   gpiob.pb13,
-            },
-
-            user_leds: pins::user_leds::Pins {
-                #[cfg(not(feature = "led-1-pa5"))] ld1: gpiob.pb0,
-                #[cfg(any(feature = "led-1-pa5"))] ld1: gpioa.pa5,
-                ld2: gpioe.pe1,
-                ld3: gpiob.pb14
-            },
-
-        }
+                       gpioh: hal::gpio::gpioh::Parts,
+                       gpioi: hal::gpio::gpioi::Parts,
+                       gpioj: hal::gpio::gpioj::Parts,
+                       gpiok: hal::gpio::gpiok::Parts) -> pins::Pins {
+        pins::Pins::new(gpioa, gpiob, gpioc, gpiod, gpioe, gpiof, gpiog, gpioh, gpioi, gpioj, gpiok)
     }
 
-    /*pub fn split_led_user(&self, pin: LedUserPin) -> led::LedUser {
-        led::LedUser::new(pin)
-    }*/
+    pub fn split_led_user(&self, pins: pins::user_leds::Pins) -> led::UserLedsAlt {
+        led::UserLedsAlt::new(pins)
+    }
 }
