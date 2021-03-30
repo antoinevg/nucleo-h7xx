@@ -243,11 +243,7 @@ impl Pins {
                gpiod: hal::gpio::gpiod::Parts,
                gpioe: hal::gpio::gpioe::Parts,
                gpiof: hal::gpio::gpiof::Parts,
-               gpiog: hal::gpio::gpiog::Parts,
-               _gpioh: hal::gpio::gpioh::Parts,
-               _gpioi: hal::gpio::gpioi::Parts,
-               _gpioj: hal::gpio::gpioj::Parts,
-               _gpiok: hal::gpio::gpiok::Parts) -> Self {
+               gpiog: hal::gpio::gpiog::Parts) -> Self {
 
         Self {
             a0: gpioa.pa3,

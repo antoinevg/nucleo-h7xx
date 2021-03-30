@@ -54,12 +54,8 @@ impl Board {
                        gpiod: hal::gpio::gpiod::Parts,
                        gpioe: hal::gpio::gpioe::Parts,
                        gpiof: hal::gpio::gpiof::Parts,
-                       gpiog: hal::gpio::gpiog::Parts,
-                       gpioh: hal::gpio::gpioh::Parts,
-                       gpioi: hal::gpio::gpioi::Parts,
-                       gpioj: hal::gpio::gpioj::Parts,
-                       gpiok: hal::gpio::gpiok::Parts) -> pins::Pins {
-        pins::Pins::new(gpioa, gpiob, gpioc, gpiod, gpioe, gpiof, gpiog, gpioh, gpioi, gpioj, gpiok)
+                       gpiog: hal::gpio::gpiog::Parts) -> pins::Pins {
+        pins::Pins::new(gpioa, gpiob, gpioc, gpiod, gpioe, gpiof, gpiog)
     }
 
     pub fn split_led_user(&self, pins: pins::user_leds::Pins) -> led::UserLedsAlt {

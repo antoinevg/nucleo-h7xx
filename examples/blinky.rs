@@ -27,11 +27,7 @@ fn main() -> ! {
                                  dp.GPIOD.split(ccdr.peripheral.GPIOD),
                                  dp.GPIOE.split(ccdr.peripheral.GPIOE),
                                  dp.GPIOF.split(ccdr.peripheral.GPIOF),
-                                 dp.GPIOG.split(ccdr.peripheral.GPIOG),
-                                 dp.GPIOH.split(ccdr.peripheral.GPIOH),
-                                 dp.GPIOI.split(ccdr.peripheral.GPIOI),
-                                 dp.GPIOJ.split(ccdr.peripheral.GPIOJ),
-                                 dp.GPIOK.split(ccdr.peripheral.GPIOK));
+                                 dp.GPIOG.split(ccdr.peripheral.GPIOG));
 
     let mut user_leds = nucleo::led::UserLedsAlt::new(pins.user_leds);
 

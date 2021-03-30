@@ -87,11 +87,7 @@ fn run() -> Result<(), jacktrip::Error> {
                                  dp.GPIOD.split(ccdr.peripheral.GPIOD),
                                  dp.GPIOE.split(ccdr.peripheral.GPIOE),
                                  dp.GPIOF.split(ccdr.peripheral.GPIOF),
-                                 dp.GPIOG.split(ccdr.peripheral.GPIOG),
-                                 dp.GPIOH.split(ccdr.peripheral.GPIOH),
-                                 dp.GPIOI.split(ccdr.peripheral.GPIOI),
-                                 dp.GPIOJ.split(ccdr.peripheral.GPIOJ),
-                                 dp.GPIOK.split(ccdr.peripheral.GPIOK));
+                                 dp.GPIOG.split(ccdr.peripheral.GPIOG));
 
     utilities::logger::init();
 
