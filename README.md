@@ -20,6 +20,13 @@ cargo generate \
 ```
 
 
+# Run Tests
+
+```
+cd testsuite
+make test
+```
+
 # Status
 
 Work in progress.
