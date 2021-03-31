@@ -94,6 +94,58 @@ pub type D70 = hal::gpio::gpiob::PB5<hal::gpio::Analog>;
 pub type D71 = hal::gpio::gpioe::PE9<hal::gpio::Analog>;
 pub type D72 = hal::gpio::gpiob::PB2<hal::gpio::Analog>;
 
+pub mod user_button {
+    use stm32h7xx_hal as hal;
+
+    #[cfg(not(feature = "button-1-pa0"))] // SB81=off, SB82=on
+    pub type Pin = hal::gpio::gpioc::PC13<hal::gpio::Analog>;
+    #[cfg(any(feature = "button-1-pa0"))] // SB81=on,  SB82=off
+    pub type Pin = hal::gpio::gpioa::PA0<hal::gpio::Analog>;
+}
+
+pub mod user_leds {
+    use stm32h7xx_hal as hal;
+    use hal::gpio::{Output, PushPull};
+
+    #[cfg(not(feature = "led-1-pa5"))] // SB65=off, SB54=on
+    pub type Pin1 = hal::gpio::gpiob::PB0<hal::gpio::Analog>;
+    #[cfg(any(feature = "led-1-pa5"))] // SB65=on,  SB54=off
+    pub type Pin1 = hal::gpio::gpioa::PA5<hal::gpio::Analog>;
+    pub type Pin2 = hal::gpio::gpioe::PE1<hal::gpio::Analog>;
+    pub type Pin3 = hal::gpio::gpiob::PB14<hal::gpio::Analog>;
+
+    #[cfg(not(feature = "led-1-pa5"))]
+    pub type Ld1 = hal::gpio::gpiob::PB0<Output<PushPull>>;
+    #[cfg(any(feature = "led-1-pa5"))]
+    pub type Ld1 = hal::gpio::gpioa::PA5<Output<PushPull>>;
+    pub type Ld2 = hal::gpio::gpioe::PE1<Output<PushPull>>;
+    pub type Ld3 = hal::gpio::gpiob::PB14<Output<PushPull>>;
+
+    pub type Type = crate::led::UserLedsGeneric<Ld1, Ld2, Ld3>;
+
+    pub struct Pins {
+        pub ld1: Pin1,
+        pub ld2: Pin2,
+        pub ld3: Pin3,
+    }
+}
+
+pub mod ethernet {
+    use stm32h7xx_hal as hal;
+
+    pub struct Pins {
+        pub ref_clk: hal::gpio::gpioa::PA1 <hal::gpio::Analog>, // REFCLK,   // RmiiRefClk
+        pub md_io:   hal::gpio::gpioa::PA2 <hal::gpio::Analog>, // IO,       // MDIO
+        pub md_clk:  hal::gpio::gpioc::PC1 <hal::gpio::Analog>, // CLK,      // MDC
+        pub crs:     hal::gpio::gpioa::PA7 <hal::gpio::Analog>, // CRS,      // RmiiCrsDv
+        pub rx_d0:   hal::gpio::gpioc::PC4 <hal::gpio::Analog>, // RXD0,     // RmiiRxD0
+        pub rx_d1:   hal::gpio::gpioc::PC5 <hal::gpio::Analog>, // RXD1,     // RmiiRxD0
+        pub tx_en:   hal::gpio::gpiog::PG11<hal::gpio::Analog>, // TXEN,     // RmiiTxEN
+        pub tx_d0:   hal::gpio::gpiog::PG13<hal::gpio::Analog>, // TXD0,     // RmiiTxD0
+        pub tx_d1:   hal::gpio::gpiob::PB13<hal::gpio::Analog>, // TXD1,     // RmiiTxD1
+    }
+}
+
 
 // - Pins ---------------------------------------------------------------------
 
@@ -122,7 +174,7 @@ pub struct Pins {
     pub d10: D10,
     pub d11: D11,
     pub d12: D12,
-    #[cfg(not(feature = "led-1-pa5"))] pub d13: D13, // used by by ld1 alt. (PA5)
+    #[cfg(not(feature = "led-1-pa5"))] pub d13: D13, // used by ld1 alt. (PA5)
     pub d14: D14,
     pub d15: D15,
     pub d16: D16,
@@ -141,8 +193,8 @@ pub struct Pins {
     pub d29: D29,
     pub d30: D30,
     pub d31: D31,
-    pub d32: D32,
-    #[cfg(any(feature = "led-1-pa5"))] pub d33: D33, // used by by ld1 (PB0)
+    #[cfg(not(feature = "button-1-pa0"))] pub d32: D32, // used by b1 (PA0)
+    #[cfg(any(feature = "led-1-pa5"))]    pub d33: D33, // used by ld1 (PB0)
     pub d34: D34,
     pub d35: D35,
     pub d36: D36,
@@ -185,52 +237,10 @@ pub struct Pins {
 
     // board peripherals
     pub ethernet:  ethernet::Pins,
+    pub user_button: user_button::Pin,
     pub user_leds: user_leds::Pins,
 
     // TODO
-}
-
-pub mod user_leds {
-    use stm32h7xx_hal as hal;
-    use hal::gpio::{Output, PushPull};
-
-    #[cfg(not(feature = "led-1-pa5"))]
-    pub type Pin1 = hal::gpio::gpiob::PB0<hal::gpio::Analog>; // SB65=off, SB54=on
-    #[cfg(any(feature = "led-1-pa5"))]
-    pub type Pin1 = hal::gpio::gpioa::PA5<hal::gpio::Analog>; // SB65=on,  SB54=off
-    pub type Pin2 = hal::gpio::gpioe::PE1<hal::gpio::Analog>;
-    pub type Pin3 = hal::gpio::gpiob::PB14<hal::gpio::Analog>;
-
-    #[cfg(not(feature = "led-1-pa5"))]
-    pub type Ld1 = hal::gpio::gpiob::PB0<Output<PushPull>>;
-    #[cfg(any(feature = "led-1-pa5"))]
-    pub type Ld1 = hal::gpio::gpioa::PA5<Output<PushPull>>;
-    pub type Ld2 = hal::gpio::gpioe::PE1<Output<PushPull>>;
-    pub type Ld3 = hal::gpio::gpiob::PB14<Output<PushPull>>;
-
-    pub type Type = crate::led::UserLedsGeneric<Ld1, Ld2, Ld3>;
-
-    pub struct Pins {
-        pub ld1: Pin1,
-        pub ld2: Pin2,
-        pub ld3: Pin3,
-    }
-}
-
-pub mod ethernet {
-    use stm32h7xx_hal as hal;
-
-    pub struct Pins {
-        pub ref_clk: hal::gpio::gpioa::PA1 <hal::gpio::Analog>, // REFCLK,   // RmiiRefClk
-        pub md_io:   hal::gpio::gpioa::PA2 <hal::gpio::Analog>, // IO,       // MDIO
-        pub md_clk:  hal::gpio::gpioc::PC1 <hal::gpio::Analog>, // CLK,      // MDC
-        pub crs:     hal::gpio::gpioa::PA7 <hal::gpio::Analog>, // CRS,      // RmiiCrsDv
-        pub rx_d0:   hal::gpio::gpioc::PC4 <hal::gpio::Analog>, // RXD0,     // RmiiRxD0
-        pub rx_d1:   hal::gpio::gpioc::PC5 <hal::gpio::Analog>, // RXD1,     // RmiiRxD0
-        pub tx_en:   hal::gpio::gpiog::PG11<hal::gpio::Analog>, // TXEN,     // RmiiTxEN
-        pub tx_d0:   hal::gpio::gpiog::PG13<hal::gpio::Analog>, // TXD0,     // RmiiTxD0
-        pub tx_d1:   hal::gpio::gpiob::PB13<hal::gpio::Analog>, // TXD1,     // RmiiTxD1
-    }
 }
 
 
@@ -291,8 +301,8 @@ impl Pins {
 
             d30: gpiod.pd11,
             d31: gpioe.pe2,
-            d32: gpioa.pa0,
-            #[cfg(any(feature = "led-1-pa5"))] d33: gpiob.pb0,
+            #[cfg(not(feature = "button-1-pa0"))] d32: gpioa.pa0,
+            #[cfg(any(feature = "led-1-pa5"))]    d33: gpiob.pb0,
             d34: gpioe.pe0,
             d35: gpiob.pb11,
             d36: gpiob.pb10,
@@ -348,6 +358,9 @@ impl Pins {
                 tx_d0:   gpiog.pg13,
                 tx_d1:   gpiob.pb13,
             },
+
+            #[cfg(not(feature = "button-1-pa0"))] user_button: gpioc.pc13,
+            #[cfg(any(feature = "button-1-pa0"))] user_button: gpioa.pa0,
 
             user_leds: user_leds::Pins {
                 #[cfg(not(feature = "led-1-pa5"))] ld1: gpiob.pb0,

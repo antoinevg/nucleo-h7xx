@@ -82,7 +82,8 @@ rtt-target = { version = "~0.2.2", features = ["cortex-m"] }
 
 [features]
 default = []
-led-1-pa5 = []  # SB65=on, SB54=off
+button-1-pa0 = []  # SB81=on, SB82=off
+led-1-pa5 = []     # SB65=on, SB54=off
 log-semihosting = []
 log-itm = []
 log-rtt = []
