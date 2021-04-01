@@ -25,7 +25,6 @@ keywords = [
 ]
 readme = "README.md"
 exclude = [
-    "examples/*",
     "testsuite/*",
     "openocd.cfg",
     "openocd.gdb",
