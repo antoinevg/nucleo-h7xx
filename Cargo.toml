@@ -17,11 +17,7 @@ keywords = [
     "bsp",
     "stm32",
     "stm32h7xx",
-    "stm32h743",
-    "stm32h745",
     "nucleo",
-    "nucleo-h743zi",
-    "nucleo-h745zi",
 ]
 readme = "README.md"
 exclude = [
