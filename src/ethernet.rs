@@ -50,7 +50,6 @@ pub const MAX_UDP_PACKET_SIZE: usize = 576;
 #[link_section = ".sram3.eth"]
 pub static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing = ethernet::DesRing::new();
 
-//#[link_section = ".axisram.eth"]
 static mut ETHERNET_MUTEX: Mutex<RefCell<Option<Interface>>> = Mutex::new(RefCell::new(None));
 pub static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
