@@ -56,7 +56,7 @@ version = "0.9.0"
 features = [ "stm32h747cm7", "rt", "ethernet" ]
 
 [dependencies.smoltcp]
-version = "0.7.0"
+version = "0.7.1"
 default-features = false
 features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
 
