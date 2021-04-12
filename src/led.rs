@@ -83,14 +83,14 @@ where LD1: OutputPin,
 
     pub fn new2(pins: user_leds::Pins) -> user_leds::Type {
         UserLedsGeneric::new(pins.ld1.into_push_pull_output(),
-                         pins.ld2.into_push_pull_output(),
-                         pins.ld3.into_push_pull_output())
+                             pins.ld2.into_push_pull_output(),
+                             pins.ld3.into_push_pull_output())
     }
 
 }
 
 pub fn new(pins: user_leds::Pins) -> user_leds::Type {
     UserLedsGeneric::new(pins.ld1.into_push_pull_output(),
-                     pins.ld2.into_push_pull_output(),
-                     pins.ld3.into_push_pull_output())
+                         pins.ld2.into_push_pull_output(),
+                         pins.ld3.into_push_pull_output())
 }
