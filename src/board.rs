@@ -62,3 +62,36 @@ impl Board {
         led::UserLeds::new(pins)
     }
 }
+
+
+// - macros -------------------------------------------------------------------
+
+#[macro_export]
+macro_rules! board_freeze_clocks {
+    ($board:expr, $dp:expr) => {
+        {
+            use nucleo_h7xx::hal::prelude::_stm32h7xx_hal_pwr_PwrExt;
+            use nucleo_h7xx::hal::prelude::_stm32h7xx_hal_rcc_RccExt;
+            $board.freeze_clocks($dp.PWR.constrain(),
+                                 $dp.RCC.constrain(),
+                                 &$dp.SYSCFG)
+        }
+    }
+}
+
+
+#[macro_export]
+macro_rules! board_split_gpios {
+    ($board:expr, $ccdr:expr, $dp:expr) => {
+        {
+            use nucleo_h7xx::hal::gpio::GpioExt;
+            $board.split_gpios($dp.GPIOA.split($ccdr.peripheral.GPIOA),
+                               $dp.GPIOB.split($ccdr.peripheral.GPIOB),
+                               $dp.GPIOC.split($ccdr.peripheral.GPIOC),
+                               $dp.GPIOD.split($ccdr.peripheral.GPIOD),
+                               $dp.GPIOE.split($ccdr.peripheral.GPIOE),
+                               $dp.GPIOF.split($ccdr.peripheral.GPIOF),
+                               $dp.GPIOG.split($ccdr.peripheral.GPIOG))
+        }
+    }
+}
