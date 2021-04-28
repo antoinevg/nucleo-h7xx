@@ -13,6 +13,7 @@
 pub mod board;
 pub mod clocks;
 pub mod led;
+#[cfg(any(feature = "ethernet"))]
 pub mod ethernet;
 pub mod pins;
 pub mod timer;

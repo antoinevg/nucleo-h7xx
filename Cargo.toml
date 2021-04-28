@@ -53,12 +53,14 @@ void = { version = "1.0.2", default-features = false }
 
 [dependencies.stm32h7xx-hal]
 version = "0.9.0"
-features = [ "stm32h747cm7", "rt", "ethernet" ]
+features = [ "stm32h747cm7", "rt" ]
 
 [dependencies.smoltcp]
 version = "0.7.1"
 default-features = false
 features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
+optional = true
+
 
 # - dev dependencies ----------------------------------------------------------
 
@@ -76,7 +78,8 @@ rtt-target = { version = "~0.2.2", features = ["cortex-m"] }
 # - features ------------------------------------------------------------------
 
 [features]
-default = []
+default = [ "ethernet" ]
+ethernet = [ "stm32h7xx-hal/ethernet", "smoltcp" ]
 button-1-pa0 = []  # SB81=on, SB82=off
 led-1-pa5 = []     # SB65=on, SB54=off
 log-semihosting = []
@@ -108,11 +111,11 @@ required-features = []
 
 [[example]]
 name = "ethernet"
-required-features = []
+required-features = [ "ethernet" ]
 
 [[example]]
 name = "ethernet_hal"
-required-features = []
+required-features = [ "ethernet" ]
 
 [[example]]
 name = "itm"
