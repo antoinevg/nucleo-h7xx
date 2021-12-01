@@ -45,6 +45,19 @@ impl Board {
         clocks::configure(pwr, rcc, syscfg)
     }
 
+    pub fn freeze_clocks_with(
+        &self,
+        pwr: hal::pwr::Pwr,
+        rcc: hal::rcc::Rcc,
+        syscfg: &hal::device::SYSCFG,
+        configure: fn(pwrcfg: hal::pwr::PowerConfiguration,
+                      rcc: hal::rcc::Rcc,
+                      syscfg: &hal::device::SYSCFG) -> hal::rcc::Ccdr
+    ) -> hal::rcc::Ccdr
+    {
+        clocks::configure_with(pwr, rcc, syscfg, configure)
+    }
+
     /// Takes the board's GPIO peripherals and split them into ZST's
     /// representing the individual GPIO pins used by the board.
     pub fn split_gpios(&self,

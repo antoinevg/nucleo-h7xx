@@ -46,28 +46,47 @@ impl HseCrystal for rcc::Rcc {
 ///                      &dp.SYSCFG);
 /// ```
 pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccdr {
+    #[cfg(not(feature = "log-itm"))]
+    let ccdr = configure_with(pwr, rcc, syscfg, |pwrcfg, rcc, syscfg| {
+        rcc.sys_ck(480.mhz())                                 // system clock @ 480 MHz
+            .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
+            .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
+            //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
+            .freeze(pwrcfg, syscfg)
+    });
+
+    #[cfg(any(feature = "log-itm"))]
+    let ccdr = configure_with(pwr, rcc, syscfg, |pwrcfg, rcc, syscfg| {
+        rcc.sys_ck(480.mhz())                                 // system clock @ 480 MHz
+            .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
+            .pll1_r_ck(480.mhz())                             // TRACECLK
+            .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
+            //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
+            .freeze(pwrcfg, syscfg)
+    });
+
+    ccdr
+}
+
+/// Configure system CCDR using a provided function
+pub fn configure_with(
+    pwr: hal::pwr::Pwr,
+    rcc: hal::rcc::Rcc,
+    syscfg: &hal::device::SYSCFG,
+    function: fn(pwrcfg: hal::pwr::PowerConfiguration,
+                 rcc: hal::rcc::Rcc,
+                 syscfg: &hal::device::SYSCFG) -> hal::rcc::Ccdr
+) -> hal::rcc::Ccdr
+{
     let mut cp = unsafe { cortex_m::Peripherals::steal() };
     let dp = unsafe { pac::Peripherals::steal() };
 
     // link SRAM3 power state to CPU1
     dp.RCC.ahb2enr.modify(|_, w| w.sram3en().set_bit());
 
+    // configure ccdr using provided function
     let pwrcfg = pwr.smps().vos0(syscfg).freeze();
-
-    #[cfg(not(feature = "log-itm"))]
-    let ccdr = rcc.sys_ck(480.mhz())                      // system clock @ 480 MHz
-        .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
-        .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
-        //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
-        .freeze(pwrcfg, syscfg);
-
-    #[cfg(any(feature = "log-itm"))]
-    let ccdr = rcc.sys_ck(480.mhz())                      // system clock @ 480 MHz
-        .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
-        .pll1_r_ck(480.mhz())                             // TRACECLK
-        .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
-        //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
-        .freeze(pwrcfg, syscfg);
+    let ccdr = function(pwrcfg, rcc, syscfg);
 
     // enable itm if the feature is selected
     #[cfg(any(feature = "log-itm"))]
