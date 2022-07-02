@@ -25,7 +25,7 @@ pub unsafe fn enable_itm(
         w.d3dbgcken().set_bit()   // D3 domain debug clock enable
          .d1dbgcken().set_bit()   // D1 domain debug clock enable
          .traceclken().set_bit()  // Enable trace port clock, TRACECLK
-         .dbgsleep_d1().set_bit() // Automatic clock stop/power-down disabled
+         .dbgslpd1().set_bit()    // Automatic clock stop/power-down disabled
     });
 
     // SWO_LAR: Unlock SWO (LAR = Lock Access Register)

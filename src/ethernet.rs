@@ -8,6 +8,7 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use cortex_m::interrupt::Mutex;
 use cortex_m_rt::exception;
 
+use hal::time::MilliSeconds;
 use stm32h7xx_hal as hal;
 use hal::prelude::*;
 use hal::hal::digital::v2::OutputPin;
@@ -24,14 +25,9 @@ use embedded_timeout_macros::{
 };
 
 use smoltcp;
-use smoltcp::iface::{
-    EthernetInterface, EthernetInterfaceBuilder, Neighbor, NeighborCache,
-    Route, Routes,
-};
-use smoltcp::socket::{SocketHandle, SocketSet, SocketSetItem};
+use smoltcp::iface::{Interface, InterfaceBuilder, Neighbor, NeighborCache, Route, Routes, SocketHandle, SocketStorage};
 use smoltcp::socket::{UdpSocket, UdpSocketBuffer, UdpPacketMetadata};
 use smoltcp::storage::PacketMetadata;
-use smoltcp::time::{Duration, Instant};
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
 
 use heapless::Vec;
@@ -48,30 +44,30 @@ pub const MAX_UDP_PACKET_SIZE: usize = 576;
 // - global static state ------------------------------------------------------
 
 #[link_section = ".sram3.eth"]
-pub static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing = ethernet::DesRing::new();
+pub static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing<4, 4> = ethernet::DesRing::new();
 
-static mut ETHERNET_MUTEX: Mutex<RefCell<Option<Interface>>> = Mutex::new(RefCell::new(None));
+static mut ETHERNET_MUTEX: Mutex<RefCell<Option<EthernetInterface>>> = Mutex::new(RefCell::new(None));
 pub static ATOMIC_TIME: AtomicU32 = AtomicU32::new(0);
 
 
 // - statically allocated storage ---------------------------------------------
 
-static mut ETHERNET_STORAGE: Storage = Storage::new();
+static mut ETHERNET_STORAGE: EthernetStorage = EthernetStorage::new();
 static mut ETHERNET_SOCKETS_STORAGE: Vec<UdpSocketStorage, heapless::consts::U8>
     = Vec(heapless::i::Vec::new());
 
-pub struct Storage<'a> {
+pub struct EthernetStorage<'a> {
     ip_addrs: [IpCidr; 1],
-    socket_set_entries: [Option<SocketSetItem<'a>>; 8],
+    socket_storage: [SocketStorage<'a>; 8],
     neighbor_cache_storage: [Option<(IpAddress, Neighbor)>; 8],
     routes_storage: [Option<(IpCidr, Route)>; 1],
 }
 
-impl<'a> Storage<'a> {
+impl<'a> EthernetStorage<'a> {
     const fn new() -> Self {
-        Storage {
+        EthernetStorage {
             ip_addrs: [IpCidr::Ipv6(Ipv6Cidr::SOLICITED_NODE_PREFIX)],
-            socket_set_entries: [None, None, None, None, None, None, None, None],
+            socket_storage: [SocketStorage::EMPTY; 8],
             neighbor_cache_storage: [None; 8],
             routes_storage: [None; 1],
         }
@@ -111,25 +107,22 @@ pub enum Error {
 }
 
 
-// - ethernet::Interface ------------------------------------------------------
+// - ethernet::EthernetInterface ----------------------------------------------
 
-pub struct Interface<'a> {
+pub struct EthernetInterface<'a> {
     pins: self::Pins,
-
     lan8742a: Option<hal::ethernet::phy::LAN8742A<hal::ethernet::EthernetMAC>>,
-    interface: Option<EthernetInterface<'a, ethernet::EthernetDMA<'a>>>,
-    pub sockets: Option<SocketSet<'static>>,
+    pub interface: Option<Interface<'a, ethernet::EthernetDMA<'a, 4, 4>>>,
     _marker: core::marker::PhantomData<&'a ()>,
 }
 
 
-impl<'a> Interface<'a> {
+impl<'a> EthernetInterface<'a> {
     fn new(pins: self::Pins) -> Self {
         Self {
-            pins: pins,
+            pins,
             lan8742a: None,
             interface: None,
-            sockets: None,
             _marker: core::marker::PhantomData,
         }
     }
@@ -177,23 +170,26 @@ impl<'a> Interface<'a> {
                  timeout_timer: Timer<pac::TIM17>) -> Result<Timer<pac::TIM17>, Error> {
 
         let pins = self::Pins {
-            ref_clk: pins.ref_clk.into_alternate_af11().set_speed(VeryHigh),
-            md_io:   pins.md_io.into_alternate_af11().set_speed(VeryHigh),
-            md_clk:  pins.md_clk.into_alternate_af11().set_speed(VeryHigh),
-            crs:     pins.crs.into_alternate_af11().set_speed(VeryHigh),
-            rx_d0:   pins.rx_d0.into_alternate_af11().set_speed(VeryHigh),
-            rx_d1:   pins.rx_d1.into_alternate_af11().set_speed(VeryHigh),
-            tx_en:   pins.tx_en.into_alternate_af11().set_speed(VeryHigh),
-            tx_d0:   pins.tx_d0.into_alternate_af11().set_speed(VeryHigh),
-            tx_d1:   pins.tx_d1.into_alternate_af11().set_speed(VeryHigh)
+            ref_clk: pins.ref_clk.into_alternate(),
+            md_io:   pins.md_io.into_alternate(),
+            md_clk:  pins.md_clk.into_alternate(),
+            crs:     pins.crs.into_alternate(),
+            rx_d0:   pins.rx_d0.into_alternate(),
+            rx_d1:   pins.rx_d1.into_alternate(),
+            tx_en:   pins.tx_en.into_alternate(),
+            tx_d0:   pins.tx_d0.into_alternate(),
+            tx_d1:   pins.tx_d1.into_alternate()
         };
 
-        let mut interface = Interface::new(pins);
-        let timeout_timer = match interface.up(mac_address,
-                                               ip_address,
-                                               eth1mac,
-                                               ccdr_clocks,
-                                               timeout_timer) {
+        let mut interface = EthernetInterface::new(pins);
+        let timeout_timer = match interface.up(
+            unsafe { &mut ETHERNET_STORAGE },
+            mac_address,
+            ip_address,
+            eth1mac,
+            ccdr_clocks,
+            timeout_timer
+        ) {
             Ok(timeout_timer) => {
                 timeout_timer
             },
@@ -211,7 +207,7 @@ impl<'a> Interface<'a> {
 
         // configure systick timer to 1ms
         let syst = unsafe { &mut pac::CorePeripherals::steal().SYST };
-        let c_ck_mhz = ccdr_clocks.c_ck().0 / 1_000_000;
+        let c_ck_mhz = ccdr_clocks.c_ck().to_MHz();
         let syst_calib = 0x3E8;
         syst.set_clock_source(cortex_m::peripheral::syst::SystClkSource::Core);
         syst.set_reload((syst_calib * c_ck_mhz) - 1);
@@ -222,7 +218,7 @@ impl<'a> Interface<'a> {
     }
 
     pub fn interrupt_free<F, R>(f: F) -> R where
-        F: FnOnce(&mut Interface<'static>) -> R {
+        F: FnOnce(&mut EthernetInterface<'static>) -> R {
         cortex_m::interrupt::free(|cs| {
             if let Some (ethernet_interface) = unsafe { ETHERNET_MUTEX.borrow(cs).borrow_mut().as_mut() } {
                 f(ethernet_interface)
@@ -233,6 +229,7 @@ impl<'a> Interface<'a> {
     }
 
     fn up(&mut self,
+          ethernet_storage: &'static mut EthernetStorage<'a>,
           mac_address: &[u8; 6],
           ip_address: &[u8; 4],
           eth1mac: hal::rcc::rec::Eth1Mac,
@@ -260,7 +257,8 @@ impl<'a> Interface<'a> {
         lan8742a.phy_init();
 
         // wait for link to come up
-        timeout_timer.start(10_000.ms());
+        let ten_seconds = core::time::Duration::new(10, 0);
+        timeout_timer.start(ten_seconds);
         let result: Result<(), TimeoutError<()>> = block_timeout!(
             &mut timeout_timer,
             {
@@ -288,23 +286,19 @@ impl<'a> Interface<'a> {
 
         // --------------------------------------------------------------------
 
-        unsafe {
-            ETHERNET_STORAGE.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
-        }
+        // set local ip address
+        ethernet_storage.ip_addrs = [IpCidr::new(Ipv4Address::from_bytes(ip_address).into(), 0)];
 
-        let neighbor_cache = NeighborCache::new(unsafe { &mut ETHERNET_STORAGE.neighbor_cache_storage[..] });
-        let routes = Routes::new(unsafe { &mut ETHERNET_STORAGE.routes_storage[..] });
-        let interface = EthernetInterfaceBuilder::new(eth_dma)
-            .ethernet_addr(ethernet_address)
+        let neighbor_cache = NeighborCache::new(&mut ethernet_storage.neighbor_cache_storage[..]);
+        let routes = Routes::new(&mut ethernet_storage.routes_storage[..]);
+        let interface = InterfaceBuilder::new(eth_dma, &mut ethernet_storage.socket_storage[..])
+            .hardware_addr(ethernet_address.into())
             .neighbor_cache(neighbor_cache)
-            .ip_addrs(unsafe { &mut ETHERNET_STORAGE.ip_addrs[..] })
+            .ip_addrs(&mut ethernet_storage.ip_addrs[..])
             .routes(routes)
             .finalize();
-        let sockets = SocketSet::new(unsafe { &mut ETHERNET_STORAGE.socket_set_entries[..] });
-
         self.lan8742a = Some(lan8742a);
         self.interface = Some(interface);
-        self.sockets = Some(sockets);
 
         Ok(timeout_timer)
     }
@@ -315,13 +309,13 @@ impl<'a> Interface<'a> {
 
     // poll ethernet interface
     pub fn poll(&mut self) -> Result<bool, smoltcp::Error> {
-        let timestamp = Instant::from_millis(self.now());
-        self.interface.as_mut().unwrap().poll(&mut self.sockets.as_mut().unwrap(), timestamp)
+        let timestamp = smoltcp::time::Instant::from_millis(self.now());
+        self.interface.as_mut().unwrap().poll(timestamp)
     }
 
-    pub fn poll_delay(&mut self) -> Option<Duration> {
-        let timestamp = Instant::from_millis(self.now());
-        self.interface.as_mut().unwrap().poll_delay(&mut self.sockets.as_mut().unwrap(), timestamp)
+    pub fn poll_delay(&mut self) -> Option<smoltcp::time::Duration> {
+        let timestamp = smoltcp::time::Instant::from_millis(self.now());
+        self.interface.as_mut().unwrap().poll_delay(timestamp)
     }
 
     /// returns an absolute time value in milliseconds
@@ -343,7 +337,7 @@ impl<'a> Interface<'a> {
                                  &mut socket_storage.udp_tx_buffer[..]),
         );
 
-        let socket_handle = self.sockets.as_mut().unwrap().add(udp_socket);
+        let socket_handle = self.interface.as_mut().unwrap().add_socket(udp_socket);
         socket_handle
     }
 }
@@ -351,7 +345,7 @@ impl<'a> Interface<'a> {
 
 // - Pins ---------------------------------------------------------------------
 
-type AlternateFunction11 = hal::gpio::Alternate<hal::gpio::AF11>;
+type AlternateFunction11 = hal::gpio::Alternate<11>;
 
 // Also see: https://github.com/stm32-rs/stm32-eth/blob/master/src/setup.rs
 

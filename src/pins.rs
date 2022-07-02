@@ -35,12 +35,12 @@ pub type D17 = hal::gpio::gpiob::PB15<hal::gpio::Analog>;
 pub type D18 = hal::gpio::gpiob::PB13<hal::gpio::Analog>;
 pub type D19 = hal::gpio::gpiob::PB12<hal::gpio::Analog>;
 
-pub type D20 = hal::gpio::gpioa::PA15<hal::gpio::Alternate<hal::gpio::AF0>>;
+pub type D20 = hal::gpio::gpioa::PA15<hal::gpio::Alternate<0>>;
 pub type D21 = hal::gpio::gpioc::PC7<hal::gpio::Analog>;
 pub type D22 = hal::gpio::gpiob::PB5<hal::gpio::Analog>;
-pub type D23 = hal::gpio::gpiob::PB3<hal::gpio::Alternate<hal::gpio::AF0>>;
+pub type D23 = hal::gpio::gpiob::PB3<hal::gpio::Alternate<0>>;
 pub type D24 = hal::gpio::gpioa::PA4<hal::gpio::Analog>;
-pub type D25 = hal::gpio::gpiob::PB4<hal::gpio::Alternate<hal::gpio::AF0>>;
+pub type D25 = hal::gpio::gpiob::PB4<hal::gpio::Alternate<0>>;
 pub type D26 = hal::gpio::gpiog::PG6<hal::gpio::Analog>;
 pub type D27 = hal::gpio::gpiob::PB2<hal::gpio::Analog>;
 pub type D28 = hal::gpio::gpiod::PD13<hal::gpio::Analog>;
