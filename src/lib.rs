@@ -7,20 +7,18 @@
 
 #![no_std]
 
-
 // - modules ------------------------------------------------------------------
 
 pub mod board;
 pub mod clocks;
-pub mod led;
 #[cfg(any(feature = "ethernet"))]
 pub mod ethernet;
+pub mod led;
 pub mod pins;
 pub mod timer;
 
 #[cfg(any(feature = "log-itm"))]
 pub mod itm;
-
 
 // - log macros ---------------------------------------------------------------
 
@@ -41,11 +39,10 @@ macro_rules! loggit {
     )
 }
 
-
 // - exports ------------------------------------------------------------------
 
-pub use stm32h7xx_hal as hal;
 pub use hal::hal as embedded_hal;
 pub use hal::pac;
+pub use stm32h7xx_hal as hal;
 
 pub use board::Board;

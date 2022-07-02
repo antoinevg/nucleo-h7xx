@@ -1,10 +1,9 @@
 pub use stm32h7xx_hal as hal;
 
-use hal::hal as embedded_hal;
 use embedded_hal::digital::v2::OutputPin;
+use hal::hal as embedded_hal;
 
 use crate::pins::user_leds;
-
 
 // - traits -------------------------------------------------------------------
 
@@ -17,13 +16,14 @@ pub trait Led {
     fn on(&mut self);
 }
 
-
 // - UserLed ------------------------------------------------------------------
 
 pub struct UserLed<PIN>(PIN);
 
 impl<PIN> Led for UserLed<PIN>
-where PIN: OutputPin {
+where
+    PIN: OutputPin,
+{
     fn on(&mut self) {
         match self.0.set_high() {
             Ok(()) => (),
@@ -39,7 +39,6 @@ where PIN: OutputPin {
     }
 }
 
-
 // - UserLeds -----------------------------------------------------------------
 
 pub struct UserLeds {
@@ -47,7 +46,6 @@ pub struct UserLeds {
     pub ld2: UserLed<user_leds::Ld2>,
     pub ld3: UserLed<user_leds::Ld3>,
 }
-
 
 impl UserLeds {
     pub fn new(pins: user_leds::Pins) -> Self {
@@ -59,7 +57,6 @@ impl UserLeds {
     }
 }
 
-
 // - UserLedsGeneric ----------------------------------------------------------
 
 pub struct UserLedsGeneric<LD1, LD2, LD3> {
@@ -68,11 +65,12 @@ pub struct UserLedsGeneric<LD1, LD2, LD3> {
     pub ld3: UserLed<LD3>,
 }
 
-
-impl <LD1, LD2, LD3>  UserLedsGeneric <LD1, LD2, LD3>
-where LD1: OutputPin,
-      LD2: OutputPin,
-      LD3: OutputPin {
+impl<LD1, LD2, LD3> UserLedsGeneric<LD1, LD2, LD3>
+where
+    LD1: OutputPin,
+    LD2: OutputPin,
+    LD3: OutputPin,
+{
     fn new(pin1: LD1, pin2: LD2, pin3: LD3) -> Self {
         Self {
             ld1: UserLed(pin1),
@@ -82,15 +80,18 @@ where LD1: OutputPin,
     }
 
     pub fn new2(pins: user_leds::Pins) -> user_leds::Type {
-        UserLedsGeneric::new(pins.ld1.into_push_pull_output(),
-                             pins.ld2.into_push_pull_output(),
-                             pins.ld3.into_push_pull_output())
+        UserLedsGeneric::new(
+            pins.ld1.into_push_pull_output(),
+            pins.ld2.into_push_pull_output(),
+            pins.ld3.into_push_pull_output(),
+        )
     }
-
 }
 
 pub fn new(pins: user_leds::Pins) -> user_leds::Type {
-    UserLedsGeneric::new(pins.ld1.into_push_pull_output(),
-                         pins.ld2.into_push_pull_output(),
-                         pins.ld3.into_push_pull_output())
+    UserLedsGeneric::new(
+        pins.ld1.into_push_pull_output(),
+        pins.ld2.into_push_pull_output(),
+        pins.ld3.into_push_pull_output(),
+    )
 }

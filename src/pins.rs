@@ -1,6 +1,5 @@
 pub use stm32h7xx_hal as hal;
 
-
 // - types --------------------------------------------------------------------
 
 pub type A0 = hal::gpio::gpioa::PA3<hal::gpio::Analog>;
@@ -104,8 +103,8 @@ pub mod user_button {
 }
 
 pub mod user_leds {
-    use stm32h7xx_hal as hal;
     use hal::gpio::{Output, PushPull};
+    use stm32h7xx_hal as hal;
 
     #[cfg(not(feature = "led-1-pa5"))] // SB65=off, SB54=on
     pub type Pin1 = hal::gpio::gpiob::PB0<hal::gpio::Analog>;
@@ -134,18 +133,17 @@ pub mod ethernet {
     use stm32h7xx_hal as hal;
 
     pub struct Pins {
-        pub ref_clk: hal::gpio::gpioa::PA1 <hal::gpio::Analog>, // REFCLK,   // RmiiRefClk
-        pub md_io:   hal::gpio::gpioa::PA2 <hal::gpio::Analog>, // IO,       // MDIO
-        pub md_clk:  hal::gpio::gpioc::PC1 <hal::gpio::Analog>, // CLK,      // MDC
-        pub crs:     hal::gpio::gpioa::PA7 <hal::gpio::Analog>, // CRS,      // RmiiCrsDv
-        pub rx_d0:   hal::gpio::gpioc::PC4 <hal::gpio::Analog>, // RXD0,     // RmiiRxD0
-        pub rx_d1:   hal::gpio::gpioc::PC5 <hal::gpio::Analog>, // RXD1,     // RmiiRxD0
-        pub tx_en:   hal::gpio::gpiog::PG11<hal::gpio::Analog>, // TXEN,     // RmiiTxEN
-        pub tx_d0:   hal::gpio::gpiog::PG13<hal::gpio::Analog>, // TXD0,     // RmiiTxD0
-        pub tx_d1:   hal::gpio::gpiob::PB13<hal::gpio::Analog>, // TXD1,     // RmiiTxD1
+        pub ref_clk: hal::gpio::gpioa::PA1<hal::gpio::Analog>, // REFCLK,   // RmiiRefClk
+        pub md_io: hal::gpio::gpioa::PA2<hal::gpio::Analog>,   // IO,       // MDIO
+        pub md_clk: hal::gpio::gpioc::PC1<hal::gpio::Analog>,  // CLK,      // MDC
+        pub crs: hal::gpio::gpioa::PA7<hal::gpio::Analog>,     // CRS,      // RmiiCrsDv
+        pub rx_d0: hal::gpio::gpioc::PC4<hal::gpio::Analog>,   // RXD0,     // RmiiRxD0
+        pub rx_d1: hal::gpio::gpioc::PC5<hal::gpio::Analog>,   // RXD1,     // RmiiRxD0
+        pub tx_en: hal::gpio::gpiog::PG11<hal::gpio::Analog>,  // TXEN,     // RmiiTxEN
+        pub tx_d0: hal::gpio::gpiog::PG13<hal::gpio::Analog>,  // TXD0,     // RmiiTxD0
+        pub tx_d1: hal::gpio::gpiob::PB13<hal::gpio::Analog>,  // TXD1,     // RmiiTxD1
     }
 }
-
 
 // - Pins ---------------------------------------------------------------------
 
@@ -160,7 +158,6 @@ pub struct Pins {
     pub a6: A6,
     pub a7: A7,
     //pub a8: A8, // used by ethernet (PA2)
-
     pub d0: D0,
     pub d1: D1,
     pub d2: D2,
@@ -174,7 +171,8 @@ pub struct Pins {
     pub d10: D10,
     pub d11: D11,
     pub d12: D12,
-    #[cfg(not(feature = "led-1-pa5"))] pub d13: D13, // used by ld1 alt. (PA5)
+    #[cfg(not(feature = "led-1-pa5"))]
+    pub d13: D13, // used by ld1 alt. (PA5)
     pub d14: D14,
     pub d15: D15,
     pub d16: D16,
@@ -193,8 +191,10 @@ pub struct Pins {
     pub d29: D29,
     pub d30: D30,
     pub d31: D31,
-    #[cfg(not(feature = "button-1-pa0"))] pub d32: D32, // used by b1 (PA0)
-    #[cfg(any(feature = "led-1-pa5"))]    pub d33: D33, // used by ld1 (PB0)
+    #[cfg(not(feature = "button-1-pa0"))]
+    pub d32: D32, // used by b1 (PA0)
+    #[cfg(any(feature = "led-1-pa5"))]
+    pub d33: D33, // used by ld1 (PB0)
     pub d34: D34,
     pub d35: D35,
     pub d36: D36,
@@ -236,25 +236,24 @@ pub struct Pins {
     //pub d72: D72, // duplicated by d27 (PB2)
 
     // board peripherals
-    pub ethernet:  ethernet::Pins,
+    pub ethernet: ethernet::Pins,
     pub user_button: user_button::Pin,
     pub user_leds: user_leds::Pins,
-
     // TODO
 }
-
 
 // - construction -------------------------------------------------------------
 
 impl Pins {
-    pub fn new(gpioa: hal::gpio::gpioa::Parts,
-               gpiob: hal::gpio::gpiob::Parts,
-               gpioc: hal::gpio::gpioc::Parts,
-               gpiod: hal::gpio::gpiod::Parts,
-               gpioe: hal::gpio::gpioe::Parts,
-               gpiof: hal::gpio::gpiof::Parts,
-               gpiog: hal::gpio::gpiog::Parts) -> Self {
-
+    pub fn new(
+        gpioa: hal::gpio::gpioa::Parts,
+        gpiob: hal::gpio::gpiob::Parts,
+        gpioc: hal::gpio::gpioc::Parts,
+        gpiod: hal::gpio::gpiod::Parts,
+        gpioe: hal::gpio::gpioe::Parts,
+        gpiof: hal::gpio::gpiof::Parts,
+        gpiog: hal::gpio::gpiog::Parts,
+    ) -> Self {
         Self {
             a0: gpioa.pa3,
             a1: gpioc.pc0,
@@ -265,7 +264,6 @@ impl Pins {
             a6: gpiof.pf6,
             a7: gpiof.pf10,
             //a8: gpioa.pa2,
-
             d0: gpiob.pb7,
             d1: gpiob.pb6,
             d2: gpiog.pg14,
@@ -280,7 +278,8 @@ impl Pins {
             d10: gpiod.pd14,
             d11: gpiob.pb5,
             d12: gpioa.pa6,
-            #[cfg(not(feature = "led-1-pa5"))] d13: gpioa.pa5,
+            #[cfg(not(feature = "led-1-pa5"))]
+            d13: gpioa.pa5,
             d14: gpiob.pb9,
             d15: gpiob.pb8,
             d16: gpioc.pc6,
@@ -301,8 +300,10 @@ impl Pins {
 
             d30: gpiod.pd11,
             d31: gpioe.pe2,
-            #[cfg(not(feature = "button-1-pa0"))] d32: gpioa.pa0,
-            #[cfg(any(feature = "led-1-pa5"))]    d33: gpiob.pb0,
+            #[cfg(not(feature = "button-1-pa0"))]
+            d32: gpioa.pa0,
+            #[cfg(any(feature = "led-1-pa5"))]
+            d33: gpiob.pb0,
             d34: gpioe.pe0,
             d35: gpiob.pb11,
             d36: gpiob.pb10,
@@ -331,7 +332,6 @@ impl Pins {
             d57: gpioe.pe4,
             d58: gpioe.pe5,
             //d59: gpioe.pe6,
-
             d60: gpioe.pe3,
             d61: gpiof.pf8,
             d62: gpiof.pf7,
@@ -346,27 +346,30 @@ impl Pins {
             //d70: gpiob.pb5,
             d71: gpioe.pe9,
             //d72: gpiob.pb2,
-
             ethernet: ethernet::Pins {
                 ref_clk: gpioa.pa1,
-                md_io:   gpioa.pa2,
-                md_clk:  gpioc.pc1,
-                crs:     gpioa.pa7,
-                rx_d0:   gpioc.pc4,
-                rx_d1:   gpioc.pc5,
-                tx_en:   gpiog.pg11,
-                tx_d0:   gpiog.pg13,
-                tx_d1:   gpiob.pb13,
+                md_io: gpioa.pa2,
+                md_clk: gpioc.pc1,
+                crs: gpioa.pa7,
+                rx_d0: gpioc.pc4,
+                rx_d1: gpioc.pc5,
+                tx_en: gpiog.pg11,
+                tx_d0: gpiog.pg13,
+                tx_d1: gpiob.pb13,
             },
 
-            #[cfg(not(feature = "button-1-pa0"))] user_button: gpioc.pc13,
-            #[cfg(any(feature = "button-1-pa0"))] user_button: gpioa.pa0,
+            #[cfg(not(feature = "button-1-pa0"))]
+            user_button: gpioc.pc13,
+            #[cfg(any(feature = "button-1-pa0"))]
+            user_button: gpioa.pa0,
 
             user_leds: user_leds::Pins {
-                #[cfg(not(feature = "led-1-pa5"))] ld1: gpiob.pb0,
-                #[cfg(any(feature = "led-1-pa5"))] ld1: gpioa.pa5,
+                #[cfg(not(feature = "led-1-pa5"))]
+                ld1: gpiob.pb0,
+                #[cfg(any(feature = "led-1-pa5"))]
+                ld1: gpioa.pa5,
                 ld2: gpioe.pe1,
-                ld3: gpiob.pb14
+                ld3: gpiob.pb14,
             },
         }
     }

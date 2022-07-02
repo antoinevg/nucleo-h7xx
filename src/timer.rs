@@ -5,28 +5,23 @@
 //! This alternate implementation uses Duration instead, allowing for
 //! much longer periods.
 
-use stm32h7xx_hal as hal;
 use hal::hal as embedded_hal;
 use hal::pac::{
-    TIM1, TIM12, TIM13, TIM14, TIM15, TIM16, TIM17, TIM2, TIM3, TIM4, TIM5,
-    TIM6, TIM7, TIM8,
+    TIM1, TIM12, TIM13, TIM14, TIM15, TIM16, TIM17, TIM2, TIM3, TIM4, TIM5, TIM6, TIM7, TIM8,
 };
-
+use stm32h7xx_hal as hal;
 
 // - CountDownTimer -----------------------------------------------------------
 
 pub struct CountDownTimer<TIMX> {
-    timer: hal::timer::Timer::<TIMX>,
+    timer: hal::timer::Timer<TIMX>,
 }
 
 impl<TIMX> CountDownTimer<TIMX> {
-    pub fn new(timer: hal::timer::Timer::<TIMX>) -> Self {
-        Self {
-            timer: timer
-        }
+    pub fn new(timer: hal::timer::Timer<TIMX>) -> Self {
+        Self { timer: timer }
     }
 }
-
 
 // - embedded_hal::timer::CountDown -------------------------------------------
 

@@ -1,17 +1,15 @@
 use crate::hal;
-use hal::prelude::*;
 use hal::pac;
+use hal::prelude::*;
 use hal::pwr;
 use hal::rcc;
 use hal::time::Hertz;
 use hal::time::MegaHertz;
 
-
 // - constants ----------------------------------------------------------------
 
 // SAI clock uses pll3
 const PLL3_P: Hertz = Hertz::Hz(48_000 * 256);
-
 
 // - types --------------------------------------------------------------------
 
@@ -27,7 +25,6 @@ impl HseCrystal for rcc::Rcc {
         self.use_hse(Self::CRYSTAL_FREQ.convert())
     }
 }
-
 
 // - configure ----------------------------------------------------------------
 
@@ -48,19 +45,19 @@ impl HseCrystal for rcc::Rcc {
 pub fn configure(pwr: pwr::Pwr, rcc: rcc::Rcc, syscfg: &pac::SYSCFG) -> rcc::Ccdr {
     #[cfg(not(feature = "log-itm"))]
     let ccdr = configure_with(pwr, rcc, syscfg, |pwrcfg, rcc, syscfg| {
-        rcc.sys_ck(480.MHz())                                 // system clock @ 480 MHz
+        rcc.sys_ck(480.MHz()) // system clock @ 480 MHz
             .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
-            .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
+            .pll3_p_ck(PLL3_P) // sai clock @ 12.288 MHz
             //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
             .freeze(pwrcfg, syscfg)
     });
 
     #[cfg(any(feature = "log-itm"))]
     let ccdr = configure_with(pwr, rcc, syscfg, |pwrcfg, rcc, syscfg| {
-        rcc.sys_ck(480.MHz())                                 // system clock @ 480 MHz
+        rcc.sys_ck(480.MHz()) // system clock @ 480 MHz
             .pll1_strategy(rcc::PllConfigStrategy::Iterative) // pll1 drives system clock
-            .pll1_r_ck(480.MHz())                             // TRACECLK
-            .pll3_p_ck(PLL3_P)                                // sai clock @ 12.288 MHz
+            .pll1_r_ck(480.MHz()) // TRACECLK
+            .pll3_p_ck(PLL3_P) // sai clock @ 12.288 MHz
             //.use_hse_crystal()                              // TODO hse oscillator @ 25 MHz
             .freeze(pwrcfg, syscfg)
     });
@@ -73,11 +70,12 @@ pub fn configure_with(
     pwr: hal::pwr::Pwr,
     rcc: hal::rcc::Rcc,
     syscfg: &hal::device::SYSCFG,
-    function: fn(pwrcfg: hal::pwr::PowerConfiguration,
-                 rcc: hal::rcc::Rcc,
-                 syscfg: &hal::device::SYSCFG) -> hal::rcc::Ccdr
-) -> hal::rcc::Ccdr
-{
+    function: fn(
+        pwrcfg: hal::pwr::PowerConfiguration,
+        rcc: hal::rcc::Rcc,
+        syscfg: &hal::device::SYSCFG,
+    ) -> hal::rcc::Ccdr,
+) -> hal::rcc::Ccdr {
     let mut cp = unsafe { cortex_m::Peripherals::steal() };
     let dp = unsafe { pac::Peripherals::steal() };
 
@@ -92,11 +90,13 @@ pub fn configure_with(
     #[cfg(any(feature = "log-itm"))]
     unsafe {
         let swo_frequency = 2_000_000;
-        crate::itm::enable_itm(&mut cp.DCB,
-                               &dp.DBGMCU,
-                               &mut cp.ITM,
-                               ccdr.clocks.c_ck().raw(),
-                               swo_frequency);
+        crate::itm::enable_itm(
+            &mut cp.DCB,
+            &dp.DBGMCU,
+            &mut cp.ITM,
+            ccdr.clocks.c_ck().raw(),
+            swo_frequency,
+        );
     }
 
     // configure cpu
@@ -106,7 +106,6 @@ pub fn configure_with(
 
     ccdr
 }
-
 
 pub fn log_clocks(clocks: &hal::rcc::CoreClocks) {
     use crate::loggit;
@@ -130,15 +129,42 @@ pub fn log_clocks(clocks: &hal::rcc::CoreClocks) {
     loggit!("lsi_ck: {}", clocks.lsi_ck().unwrap_or_else(|| 0.Hz()));
     loggit!("mco1_ck: {}", clocks.mco1_ck().unwrap_or_else(|| 0.Hz()));
     loggit!("mco2_ck: {}", clocks.mco2_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll1_p_ck: {}", clocks.pll1_p_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll1_q_ck: {}", clocks.pll1_q_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll1_r_ck: {}", clocks.pll1_r_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll2_p_ck: {}", clocks.pll2_p_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll2_q_ck: {}", clocks.pll2_q_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll2_r_ck: {}", clocks.pll2_r_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll3_p_ck: {}", clocks.pll3_p_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll3_q_ck: {}", clocks.pll3_q_ck().unwrap_or_else(|| 0.Hz()));
-    loggit!("pll3_r_ck: {}", clocks.pll3_r_ck().unwrap_or_else(|| 0.Hz()));
+    loggit!(
+        "pll1_p_ck: {}",
+        clocks.pll1_p_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll1_q_ck: {}",
+        clocks.pll1_q_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll1_r_ck: {}",
+        clocks.pll1_r_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll2_p_ck: {}",
+        clocks.pll2_p_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll2_q_ck: {}",
+        clocks.pll2_q_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll2_r_ck: {}",
+        clocks.pll2_r_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll3_p_ck: {}",
+        clocks.pll3_p_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll3_q_ck: {}",
+        clocks.pll3_q_ck().unwrap_or_else(|| 0.Hz())
+    );
+    loggit!(
+        "pll3_r_ck: {}",
+        clocks.pll3_r_ck().unwrap_or_else(|| 0.Hz())
+    );
 
     loggit!("SCGU sys_ck: {}", clocks.sys_ck());
     loggit!("SCGU sysclk: {}", clocks.sysclk());

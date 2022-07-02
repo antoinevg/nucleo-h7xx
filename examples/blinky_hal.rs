@@ -3,9 +3,9 @@
 
 use panic_semihosting as _;
 
-use nucleo_h7xx::hal;
-use hal::{pac, prelude::*};
 use hal::rcc::PllConfigStrategy;
+use hal::{pac, prelude::*};
+use nucleo_h7xx::hal;
 
 #[cortex_m_rt::entry]
 fn main() -> ! {
@@ -15,9 +15,11 @@ fn main() -> ! {
 
     let pwr = dp.PWR.constrain();
     let pwrcfg = pwr.smps().vos0(&dp.SYSCFG).freeze();
-    let ccdr = dp.RCC.constrain()
-        .pll1_strategy(PllConfigStrategy::Iterative)  // pll1 drives system clock
-        .sys_ck(480.MHz())                            // system clock @ 480 MHz
+    let ccdr = dp
+        .RCC
+        .constrain()
+        .pll1_strategy(PllConfigStrategy::Iterative) // pll1 drives system clock
+        .sys_ck(480.MHz()) // system clock @ 480 MHz
         .freeze(pwrcfg, &dp.SYSCFG);
 
     // - pins -----------------------------------------------------------------

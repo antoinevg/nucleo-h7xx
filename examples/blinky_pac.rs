@@ -1,11 +1,10 @@
 #![no_main]
 #![no_std]
 
-use panic_semihosting as _;
 use cortex_m_rt::entry;
+use panic_semihosting as _;
 
 use nucleo_h7xx::hal::pac;
-
 
 #[entry]
 fn main() -> ! {
@@ -23,7 +22,6 @@ fn main() -> ! {
     gpioe.otyper.modify(|_, w| w.ot1().push_pull());
     gpioe.pupdr.modify(|_, w| w.pupdr1().pull_up());
     gpioe.ospeedr.modify(|_, w| w.ospeedr1().high_speed());
-
 
     // - main loop ------------------------------------------------------------
 

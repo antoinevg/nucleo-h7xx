@@ -1,48 +1,44 @@
 #![no_main]
 #![no_std]
 
+use cortex_m_semihosting::hprintln;
 /// Simple ethernet example that will respond to icmp pings on
 /// `IP_LOCAL` and periodically send a udp packet to
 /// `IP_REMOTE:IP_REMOTE_PORT`
 ///
 /// Also see: https://github.com/stm32-rs/stm32h7xx-hal/blob/master/examples/ethernet-rtic-stm32h747i-disco.rs
 ///           https://github.com/adamgreig/stm32f4-smoltcp-demo
-
 use panic_semihosting as _;
-use cortex_m_semihosting::hprintln;
 
 use core::sync::atomic::{AtomicU32, Ordering};
 
-use cortex_m_rt::{entry, exception};
 use cortex_m;
+use cortex_m_rt::{entry, exception};
 
-use stm32h7xx_hal as hal;
 use hal::rcc::CoreClocks;
 use hal::{ethernet, ethernet::PHY};
+use stm32h7xx_hal as hal;
 
 use hal::{pac, prelude::*};
 use pac::interrupt;
 
 use smoltcp;
 use smoltcp::iface::{
-    Interface, InterfaceBuilder, Neighbor, NeighborCache,
-    Route, Routes, SocketStorage,
+    Interface, InterfaceBuilder, Neighbor, NeighborCache, Route, Routes, SocketStorage,
 };
-use smoltcp::socket::{UdpSocket, UdpSocketBuffer, UdpPacketMetadata};
+use smoltcp::socket::{UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
 use smoltcp::storage::PacketMetadata;
 use smoltcp::time::Instant;
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv6Cidr, IpEndpoint, Ipv4Address};
-
+use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, IpEndpoint, Ipv4Address, Ipv6Cidr};
 
 // - global constants ---------------------------------------------------------
 
 const MAC_LOCAL: [u8; 6] = [0x02, 0x00, 0x11, 0x22, 0x33, 0x44];
-const IP_LOCAL: [u8; 4] = [ 192, 168, 20, 99 ];
-const IP_REMOTE: [u8; 4] = [ 192, 168, 20, 114 ];
+const IP_LOCAL: [u8; 4] = [192, 168, 20, 99];
+const IP_REMOTE: [u8; 4] = [192, 168, 20, 114];
 const IP_REMOTE_PORT: u16 = 34254;
 
 const MAX_UDP_PACKET_SIZE: usize = 576;
-
 
 // - global static state ------------------------------------------------------
 
@@ -53,7 +49,6 @@ static mut ETHERNET_STORAGE: EthernetStorage = EthernetStorage::new();
 
 #[link_section = ".sram3.eth"]
 static mut ETHERNET_DESCRIPTOR_RING: ethernet::DesRing<4, 4> = ethernet::DesRing::new();
-
 
 // - entry points -------------------------------------------------------------
 
@@ -86,8 +81,8 @@ fn main() -> ! {
     let gpiob = dp.GPIOB.split(ccdr.peripheral.GPIOB);
     let gpioe = dp.GPIOE.split(ccdr.peripheral.GPIOE);
 
-    let mut led_user = gpiob.pb14.into_push_pull_output();  // LED3, red
-    let mut led_link = gpioe.pe1.into_push_pull_output();   // LED2, yellow
+    let mut led_user = gpiob.pb14.into_push_pull_output(); // LED3, red
+    let mut led_link = gpioe.pe1.into_push_pull_output(); // LED2, yellow
     led_user.set_high();
     led_link.set_low();
 
@@ -103,15 +98,15 @@ fn main() -> ! {
     let gpioc = dp.GPIOC.split(ccdr.peripheral.GPIOC);
     let gpiog = dp.GPIOG.split(ccdr.peripheral.GPIOG);
 
-    let _rmii_ref_clk: gpioa::PA1 <AlternateFunction11> = gpioa.pa1.into_alternate();
-    let _rmii_mdio:    gpioa::PA2 <AlternateFunction11> = gpioa.pa2.into_alternate();
-    let _rmii_mdc:     gpioc::PC1 <AlternateFunction11> = gpioc.pc1.into_alternate();
-    let _rmii_crs_dv:  gpioa::PA7 <AlternateFunction11> = gpioa.pa7.into_alternate();
-    let _rmii_rxd0:    gpioc::PC4 <AlternateFunction11> = gpioc.pc4.into_alternate();
-    let _rmii_rxd1:    gpioc::PC5 <AlternateFunction11> = gpioc.pc5.into_alternate();
-    let _rmii_tx_en:   gpiog::PG11<AlternateFunction11> = gpiog.pg11.into_alternate();
-    let _rmii_txd0:    gpiog::PG13<AlternateFunction11> = gpiog.pg13.into_alternate();
-    let _rmii_txd1:    gpiob::PB13<AlternateFunction11> = gpiob.pb13.into_alternate();
+    let _rmii_ref_clk: gpioa::PA1<AlternateFunction11> = gpioa.pa1.into_alternate();
+    let _rmii_mdio: gpioa::PA2<AlternateFunction11> = gpioa.pa2.into_alternate();
+    let _rmii_mdc: gpioc::PC1<AlternateFunction11> = gpioc.pc1.into_alternate();
+    let _rmii_crs_dv: gpioa::PA7<AlternateFunction11> = gpioa.pa7.into_alternate();
+    let _rmii_rxd0: gpioc::PC4<AlternateFunction11> = gpioc.pc4.into_alternate();
+    let _rmii_rxd1: gpioc::PC5<AlternateFunction11> = gpioc.pc5.into_alternate();
+    let _rmii_tx_en: gpiog::PG11<AlternateFunction11> = gpiog.pg11.into_alternate();
+    let _rmii_txd0: gpiog::PG13<AlternateFunction11> = gpiog.pg13.into_alternate();
+    let _rmii_txd1: gpiob::PB13<AlternateFunction11> = gpiob.pb13.into_alternate();
 
     assert_eq!(ccdr.clocks.hclk().raw(), 200_000_000); // HCLK 200MHz
     assert_eq!(ccdr.clocks.pclk1().raw(), 100_000_000); // PCLK 100MHz
@@ -135,7 +130,7 @@ fn main() -> ! {
     let mut lan8742a = ethernet::phy::LAN8742A::new(eth_mac.set_phy_addr(0));
     lan8742a.phy_reset();
     lan8742a.phy_init();
-    while !lan8742a.poll_link() { }
+    while !lan8742a.poll_link() {}
 
     // enable ethernet interrupt
     unsafe {
@@ -152,26 +147,29 @@ fn main() -> ! {
     // - udp socket -----------------------------------------------------------
 
     let store = unsafe { &mut ETHERNET_STORAGE };
-    let udp_rx_buffer = UdpSocketBuffer::new(&mut store.udp_rx_metadata[..],
-                                             &mut store.udp_rx_buffer_storage[..]);
-    let udp_tx_buffer = UdpSocketBuffer::new(&mut store.udp_tx_metadata[..],
-                                             &mut store.udp_tx_buffer_storage[..]);
+    let udp_rx_buffer = UdpSocketBuffer::new(
+        &mut store.udp_rx_metadata[..],
+        &mut store.udp_rx_buffer_storage[..],
+    );
+    let udp_tx_buffer = UdpSocketBuffer::new(
+        &mut store.udp_tx_metadata[..],
+        &mut store.udp_tx_buffer_storage[..],
+    );
     let mut udp_socket = UdpSocket::new(udp_rx_buffer, udp_tx_buffer);
 
     let endpoint_local = IpEndpoint::new(Ipv4Address::from_bytes(&IP_LOCAL).into(), 12345);
-    let endpoint_remote = IpEndpoint::new(Ipv4Address::from_bytes(&IP_REMOTE).into(), IP_REMOTE_PORT);
+    let endpoint_remote =
+        IpEndpoint::new(Ipv4Address::from_bytes(&IP_REMOTE).into(), IP_REMOTE_PORT);
     if !udp_socket.is_open() {
         udp_socket.bind(endpoint_local).unwrap();
     }
 
     let udp_socket_handle = unsafe { ETHERNET.as_mut().unwrap().interface.add_socket(udp_socket) };
 
-
     // - timer ----------------------------------------------------------------
 
-    systick_init(&mut cp.SYST, &ccdr.clocks);  // 1ms tick
+    systick_init(&mut cp.SYST, &ccdr.clocks); // 1ms tick
     let mut delay = cp.SYST.delay(ccdr.clocks);
-
 
     // - main loop ------------------------------------------------------------
 
@@ -180,11 +178,17 @@ fn main() -> ! {
     loop {
         match lan8742a.poll_link() {
             true => led_link.set_high(),
-            _    => led_link.set_low(),
+            _ => led_link.set_low(),
         }
 
         // send a packet
-        let udp_socket =  unsafe { ETHERNET.as_mut().unwrap().interface.get_socket::<UdpSocket>(udp_socket_handle) };
+        let udp_socket = unsafe {
+            ETHERNET
+                .as_mut()
+                .unwrap()
+                .interface
+                .get_socket::<UdpSocket>(udp_socket_handle)
+        };
         match udp_socket.send_slice("hello there\n".as_bytes(), endpoint_remote) {
             Ok(()) => (),
             Err(e) => hprintln!("oops: {:?}", e),
@@ -193,7 +197,6 @@ fn main() -> ! {
         delay.delay_ms(2000_u16);
     }
 }
-
 
 // - systick ------------------------------------------------------------------
 
@@ -205,7 +208,6 @@ fn systick_init(syst: &mut pac::SYST, clocks: &CoreClocks) {
     syst.enable_interrupt();
     syst.enable_counter();
 }
-
 
 // - interrupts and exceptions ------------------------------------------------
 
@@ -223,7 +225,6 @@ fn ETH() {
 fn SysTick() {
     ATOMIC_TIME.fetch_add(1, Ordering::Relaxed);
 }
-
 
 // - NetStaticStorage ---------------------------------------------------------
 
@@ -256,7 +257,6 @@ impl<'a> EthernetStorage<'a> {
     }
 }
 
-
 // - Net ----------------------------------------------------------------------
 
 pub struct Net<'a> {
@@ -280,9 +280,7 @@ impl<'a> Net<'a> {
             .routes(routes)
             .finalize();
 
-        Net {
-            interface,
-        }
+        Net { interface }
     }
 
     // poll ethernet interface
@@ -295,6 +293,5 @@ impl<'a> Net<'a> {
             Err(smoltcp::Error::Unrecognized) => (),
             Err(e) => hprintln!("Error polling: {:?}", e),
         };
-
     }
 }
