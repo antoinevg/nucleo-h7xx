@@ -33,7 +33,7 @@ fn main() -> ! {
 
     // - main loop ------------------------------------------------------------
 
-    let one_second = ccdr.clocks.sys_ck().0;
+    let one_second = ccdr.clocks.sys_ck().raw();
 
     loop {
         user_leds.ld3.off();

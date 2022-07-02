@@ -41,7 +41,7 @@ fn main() -> ! {
 
     utilities::logger::init();
 
-    let itm = unsafe { &mut *cortex_m::peripheral::ITM::ptr() };
+    let itm = unsafe { &mut *cortex_m::peripheral::ITM::PTR };
     iprintln!(&mut itm.stim[0], "Hello itm example!");
 
     info!("Hello itm example!");
@@ -56,7 +56,7 @@ fn main() -> ! {
 
     // - main loop ------------------------------------------------------------
 
-    let one_second = ccdr.clocks.sys_ck().0;
+    let one_second = ccdr.clocks.sys_ck().raw();
     let mut counter = 0;
 
     loop {

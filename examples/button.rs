@@ -15,15 +15,12 @@ use hal::prelude::*;
 use hal::gpio::ExtiPin;
 use hal::interrupt;
 
-use nucleo::embedded_hal;
-use embedded_hal::digital::v2::InputPin;
-
 use nucleo::pac;
 
 
 // - global static state ------------------------------------------------------
 
-static USER_BUTTON: Mutex<RefCell<Option<hal::gpio::gpioc::PC13<hal::gpio::Input<hal::gpio::Floating>>>>> =
+static USER_BUTTON: Mutex<RefCell<Option<hal::gpio::gpioc::PC13<hal::gpio::Input>>>> =
     Mutex::new(RefCell::new(None));
 static USER_LEDS: Mutex<RefCell<Option<nucleo::led::UserLeds>>> =
     Mutex::new(RefCell::new(None));
@@ -89,7 +86,7 @@ fn EXTI15_10() {
 
             user_button.clear_interrupt_pending_bit();
 
-            if user_button.is_high().unwrap() {
+            if user_button.is_high() {
                 user_leds.ld1.on();
                 user_leds.ld2.on();
                 user_leds.ld3.on();

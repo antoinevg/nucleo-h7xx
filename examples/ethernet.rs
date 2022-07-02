@@ -25,10 +25,9 @@ use pac::interrupt;
 
 use smoltcp;
 use smoltcp::iface::{
-    EthernetInterface, EthernetInterfaceBuilder, Neighbor, NeighborCache,
+    Interface, InterfaceBuilder, Neighbor, NeighborCache,
     Route, Routes,
 };
-use smoltcp::socket::{SocketSet, SocketSetItem};
 use smoltcp::socket::{UdpSocket, UdpSocketBuffer, UdpPacketMetadata};
 use smoltcp::storage::PacketMetadata;
 use smoltcp::time::Instant;
@@ -90,14 +89,16 @@ fn main() -> ! {
 
     info!("Bringing up ethernet interface");
 
-    let timeout_timer = dp.TIM17.timer(100.hz(), ccdr.peripheral.TIM17, &ccdr.clocks);
+    let timeout_timer = dp.TIM17.timer(100.Hz(), ccdr.peripheral.TIM17, &ccdr.clocks);
     let timeout_timer = nucleo::timer::CountDownTimer::new(timeout_timer);
-    let timeout_timer = match nucleo::ethernet::Interface::start(pins.ethernet,
-                                                                 &MAC_LOCAL,
-                                                                 &IP_LOCAL,
-                                                                 ccdr.peripheral.ETH1MAC,
-                                                                 &ccdr.clocks,
-                                                                 timeout_timer) {
+    let timeout_timer = match nucleo::ethernet::EthernetInterface::start(
+        pins.ethernet,
+        &MAC_LOCAL,
+        &IP_LOCAL,
+        ccdr.peripheral.ETH1MAC,
+        &ccdr.clocks,
+        timeout_timer
+    ) {
         Ok(tim17) => tim17,
         Err(e) => {
             error!("Failed to start ethernet interface: {:?}", e);
@@ -107,14 +108,14 @@ fn main() -> ! {
 
     // wait for link to come up
     info!("Waiting for link to come up");
-    nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+    nucleo::ethernet::EthernetInterface::interrupt_free(|ethernet_interface| {
         while !ethernet_interface.poll_link() { }
     });
 
     // create and bind socket
-    let socket_handle = nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+    let socket_handle = nucleo::ethernet::EthernetInterface::interrupt_free(|ethernet_interface| {
         let socket_handle = ethernet_interface.new_udp_socket();
-        let mut socket = ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(socket_handle);
+        let socket = ethernet_interface.interface.as_mut().unwrap().get_socket::<UdpSocket>(socket_handle);
         match socket.bind(local_endpoint) {
             Ok(()) => return socket_handle,
             Err(e) => {
@@ -135,12 +136,12 @@ fn main() -> ! {
         cortex_m::asm::wfi();
 
         // poll ethernet interface
-        let now = nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
+        let now = nucleo::ethernet::EthernetInterface::interrupt_free(|ethernet_interface| {
             match ethernet_interface.poll() {
                 Ok(result) => {}, // packets were processed or emitted
                 Err(smoltcp::Error::Exhausted) => (),
                 Err(smoltcp::Error::Unrecognized) => (),
-                Err(e) => debug!("ethernet::Interface.poll() -> {:?}", e)
+                Err(e) => debug!("ethernet::EthernetInterface.poll() -> {:?}", e)
             }
             ethernet_interface.now()
         });
@@ -153,8 +154,8 @@ fn main() -> ! {
         }
 
         // send something
-        nucleo::ethernet::Interface::interrupt_free(|ethernet_interface| {
-            let mut socket = ethernet_interface.sockets.as_mut().unwrap().get::<UdpSocket>(socket_handle);
+        nucleo::ethernet::EthernetInterface::interrupt_free(|ethernet_interface| {
+            let socket = ethernet_interface.interface.as_mut().unwrap().get_socket::<UdpSocket>(socket_handle);
             match socket.send_slice("nucleo says hello!\n".as_bytes(), remote_endpoint) {
                 Ok(()) => (),
                 Err(smoltcp::Error::Exhausted) => (),
