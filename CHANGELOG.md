@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2022-07-02
 ### Fixed
-- Panic at start due to `cortex-m-rt = 0.7.x` memory layout changes. (Ref: [rust-embedded/cortex-m #426](https://github.com/rust-embedded/cortex-m/issues/426#issuecomment-1092384050)]
+- Panic at start due to `cortex-m-rt = 0.7.x` memory layout changes. (Ref: [rust-embedded/cortex-m #426](https://github.com/rust-embedded/cortex-m/issues/426#issuecomment-1092384050))
 ### Changed
 - Update `cortex-m` to `0.7.5`
 - Update `cortex-m-rt` to `0.7.1`
