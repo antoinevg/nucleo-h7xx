@@ -22,19 +22,15 @@ pub mod itm;
 
 // - log macros ---------------------------------------------------------------
 
-#[cfg(any(feature = "log-itm"))]
 #[macro_export]
 macro_rules! loggit {
     ($($arg:tt)*) => (
-        let itm = unsafe { &mut *cortex_m::peripheral::ITM::PTR };
-        cortex_m::iprintln!(&mut itm.stim[0], $($arg)*);
-    )
-}
-
-#[cfg(not(feature = "log-itm"))]
-#[macro_export]
-macro_rules! loggit {
-    ($($arg:tt)*) => (
+        #[cfg(feature = "log-itm")]
+        {
+            let itm = unsafe { &mut *cortex_m::peripheral::ITM::PTR };
+            cortex_m::iprintln!(&mut itm.stim[0], $($arg)*);
+        }
+        #[cfg(feature = "log-semihosting")]
         cortex_m_semihosting::hprintln!($($arg)*);
     )
 }

@@ -35,7 +35,7 @@ use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, IpEndpoint, Ipv4Address,
 
 const MAC_LOCAL: [u8; 6] = [0x02, 0x00, 0x11, 0x22, 0x33, 0x44];
 const IP_LOCAL: [u8; 4] = [192, 168, 20, 99];
-const IP_REMOTE: [u8; 4] = [192, 168, 20, 114];
+const IP_REMOTE: [u8; 4] = [192, 168, 20, 207];
 const IP_REMOTE_PORT: u16 = 34254;
 
 const MAX_UDP_PACKET_SIZE: usize = 576;

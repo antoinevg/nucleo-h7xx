@@ -21,6 +21,10 @@ MEMORY
 REGION_ALIAS(RAM, DTCMRAM);
 REGION_ALIAS(FLASH, FLASH1);
 
+/* The location of the stack can be overridden using the
+   `_stack_start` symbol.  Place the stack at the end of RAM */
+_stack_start = ORIGIN(RAM) + LENGTH(RAM);
+
 SECTIONS
 {
     .itcmram : ALIGN(4) {
@@ -51,5 +55,4 @@ SECTIONS
         *(.sram4 .sram4.*);
         . = ALIGN(4);
      } > SRAM4
-
-} INSERT AFTER .bss;
+};

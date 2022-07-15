@@ -107,6 +107,7 @@ pub fn configure_with(
     ccdr
 }
 
+#[cfg(any(feature = "log-itm", feature = "log-semihosting"))]
 pub fn log_clocks(clocks: &hal::rcc::CoreClocks) {
     use crate::loggit;
 

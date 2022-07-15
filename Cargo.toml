@@ -1,7 +1,7 @@
 [package]
 name = "nucleo-h7xx"
 version = "0.2.0"
-authors = ["Antoine van Gelder <antoine@flowdsp.io>"]
+authors = [ "Antoine van Gelder <antoine@flowdsp.io>" ]
 edition = "2018"
 license = "MIT"
 description = "Board support crate for the STMicroelectronics STM32H7 Nucleo-144 boards."
@@ -27,8 +27,8 @@ exclude = [
 ]
 
 [package.metadata.docs.rs]
-features = [ ]
-targets = ["thumbv7em-none-eabihf"]
+features = []
+targets = [ "thumbv7em-none-eabihf" ]
 
 
 # - workspace -----------------------------------------------------------------
@@ -40,51 +40,52 @@ targets = ["thumbv7em-none-eabihf"]
 #]
 
 
+# - features ------------------------------------------------------------------
+
+[features]
+default = []
+ethernet = [ "stm32h7xx-hal/ethernet", "smoltcp" ]
+button-1-pa0 = []  # SB81=on, SB82=off
+led-1-pa5 = []     # SB65=on, SB54=off
+log-semihosting = [ "cortex-m-semihosting" ]
+log-itm = []
+log-rtt = []
+
+
 # - dependencies --------------------------------------------------------------
 
 [dependencies]
 cortex-m = "0.7.5"
 cortex-m-rt = { version = "0.7.1" }
-cortex-m-semihosting = { version = "0.5.0" }
-embedded-timeout-macros = { version = "0.3.0" }
-heapless = { version = "0.6.0", default_features = true }
+stm32h7xx-hal = { version = "0.12.2", features = [ "stm32h747cm7" ] }
+
+embedded-timeout-macros = "0.3.0"
+heapless = "0.6.0"
 nb = "1.0.0"
 void = { version = "1.0.2", default-features = false }
 
-[dependencies.stm32h7xx-hal]
-version = "0.12.2"
-features = [ "stm32h747cm7", "rt" ]
-
-[dependencies.smoltcp]
-version = "0.8.1"
-default-features = false
-features = ["medium-ethernet", "proto-ipv4", "proto-ipv6", "socket-raw", "socket-udp"]
-optional = true
+cortex-m-semihosting = { version = "0.5.0", optional = true } #, features = [ "jlink-quirks" ] }
+smoltcp = { version = "0.8.1", optional = true, default-features = false, features = [
+    "medium-ethernet",
+    "proto-ipv4",
+    "proto-ipv6",
+    "socket-raw",
+    "socket-udp"
+] }
 
 
 # - dev dependencies ----------------------------------------------------------
 
 [dev-dependencies]
 cfg-if = "1.0.0"
-cortex-m-log = { version = "~0.7.0", features = ["itm", "semihosting", "log-integration"] }
-lazy_static = { version = "~1.4.0", features = ["spin_no_std"] }
+cortex-m-log = { version = "~0.7.0", features = [ "itm", "semihosting", "log-integration" ] }
+lazy_static = { version = "~1.4.0", features = [ "spin_no_std" ] }
 log = "0.4.14"
 panic-halt = "0.2.0"
 panic-itm = { version = "~0.4.2" }
-panic-rtt-target = { version = "~0.1.1", features = ["cortex-m"] }
+panic-rtt-target = { version = "~0.1.1", features = [ "cortex-m" ] }
 panic-semihosting = { version = "~0.5.3" }
-rtt-target = { version = "~0.3.1", features = ["cortex-m"] }
-
-# - features ------------------------------------------------------------------
-
-[features]
-default = [ "ethernet" ]
-ethernet = [ "stm32h7xx-hal/ethernet", "smoltcp" ]
-button-1-pa0 = []  # SB81=on, SB82=off
-led-1-pa5 = []     # SB65=on, SB54=off
-log-semihosting = []
-log-itm = []
-log-rtt = []
+rtt-target = { version = "~0.3.1", features = [ "cortex-m" ] }
 
 
 # - profiles ------------------------------------------------------------------
@@ -115,7 +116,7 @@ required-features = [ "ethernet" ]
 
 [[example]]
 name = "ethernet_hal"
-required-features = [ "ethernet" ]
+required-features = [ "ethernet", "log-semihosting" ]
 
 [[example]]
 name = "itm"
