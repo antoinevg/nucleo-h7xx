@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `cortex-m` to `0.7.5`
 - Update `cortex-m-rt` to `0.7.1`
 - Update `cortex-m-semihosting` to `0.5.0`
-- Update `stm32h7xx-hal` to `0.9.0`
+- Update `stm32h7xx-hal` to `0.12.2`
 - Update `smoltcp` to `0.8.1`
 - Update `defmt` to `0.3.2`
 - Update `defmt-rtt` to `0.3.2`
@@ -42,4 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * Ethernet
 
 
+[Unreleased]: https://github.com/antoinevg/nucleo-h7xx/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/antoinevg/nucleo-h7xx/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/antoinevg/nucleo-h7xx/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/antoinevg/nucleo-h7xx/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/antoinevg/nucleo-h7xx/releases/tag/v0.1.0
