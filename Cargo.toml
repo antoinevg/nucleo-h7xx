@@ -1,6 +1,6 @@
 [package]
 name = "nucleo-h7xx"
-version = "0.2.0"
+version = "0.2.1"
 authors = [ "Antoine van Gelder <antoine@flowdsp.io>" ]
 edition = "2018"
 license = "MIT"
