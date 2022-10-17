@@ -25,13 +25,11 @@ where
     PIN: OutputPin,
 {
     fn on(&mut self) {
-        if let Ok(()) = self.0.set_high() {
-        }
+        if let Ok(()) = self.0.set_high() {}
     }
 
     fn off(&mut self) {
-        if let Ok(()) = self.0.set_low() {
-        }
+        if let Ok(()) = self.0.set_low() {}
     }
 }
 
