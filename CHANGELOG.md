@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 -->
 
+## [0.2.1] - 2022-10-17
+### Changed
+- Update `cortex-m` to `0.7.6`
+- Update `stm32h7xx-hal` to `0.13.0`
+- Update `heapless` to `0.7.16`
+- Update `panic-semihosting` to `0.6.0`
+
 ## [0.2.0] - 2022-07-02
 ### Fixed
 - Panic at start due to `cortex-m-rt = 0.7.x` memory layout changes. (Ref: [rust-embedded/cortex-m #426](https://github.com/rust-embedded/cortex-m/issues/426#issuecomment-1092384050))
