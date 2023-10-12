@@ -45,6 +45,7 @@ targets = [ "thumbv7em-none-eabihf" ]
 [features]
 default = []
 ethernet = [ "stm32h7xx-hal/ethernet", "smoltcp" ]
+defmt = [ "stm32h7xx-hal/defmt" ]
 button-1-pa0 = []  # SB81=on, SB82=off
 led-1-pa5 = []     # SB65=on, SB54=off
 log-semihosting = [ "cortex-m-semihosting" ]
