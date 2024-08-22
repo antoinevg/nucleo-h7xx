@@ -141,12 +141,12 @@ fn main() -> ! {
 
     // create global static ETHERNET object
     unsafe {
-        ETHERNET = Some(Net::new(&mut ETHERNET_STORAGE, eth_dma, mac_addr));
+        ETHERNET = Some(Net::new(&mut *core::ptr::addr_of_mut!(ETHERNET_STORAGE), eth_dma, mac_addr));
     }
 
     // - udp socket -----------------------------------------------------------
 
-    let store = unsafe { &mut ETHERNET_STORAGE };
+    let store = unsafe { &mut *core::ptr::addr_of_mut!(ETHERNET_STORAGE) };
     let udp_rx_buffer = UdpSocketBuffer::new(
         &mut store.udp_rx_metadata[..],
         &mut store.udp_rx_buffer_storage[..],
