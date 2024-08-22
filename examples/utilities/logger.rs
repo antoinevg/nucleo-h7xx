@@ -9,7 +9,7 @@ cfg_if::cfg_if! {
         use cortex_m_log::printer::semihosting;
         use cortex_m_log::printer::semihosting::Semihosting;
         use cortex_m_log::modes::InterruptOk;
-        use cortex_m_semihosting::hio::HStdout;
+        use cortex_m_log::printer::semihosting::hio::HStdout;
 
         lazy_static! {
             static ref LOGGER: Logger<Semihosting<InterruptOk, HStdout>> = Logger {
