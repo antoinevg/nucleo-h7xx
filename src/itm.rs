@@ -1,4 +1,4 @@
-/// Adapted from: https://gist.github.com/diondokter/5740aeb145e123c5b4dac7c7b32e36f6
+/// Adapted from: <https://gist.github.com/diondokter/5740aeb145e123c5b4dac7c7b32e36f6>
 ///
 /// Register addresses:
 ///
