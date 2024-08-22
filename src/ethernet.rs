@@ -187,7 +187,7 @@ impl<'a> EthernetInterface<'a> {
 
         let mut interface = EthernetInterface::new(pins);
         let timeout_timer = match interface.up(
-            unsafe { &mut ETHERNET_STORAGE },
+            unsafe { &mut *core::ptr::addr_of_mut!(ETHERNET_STORAGE) },
             mac_address,
             ip_address,
             eth1mac,
@@ -248,7 +248,7 @@ impl<'a> EthernetInterface<'a> {
                 dp.ETHERNET_MAC,
                 dp.ETHERNET_MTL,
                 dp.ETHERNET_DMA,
-                &mut ETHERNET_DESCRIPTOR_RING,
+                &mut *core::ptr::addr_of_mut!(ETHERNET_DESCRIPTOR_RING),
                 ethernet_address,
                 eth1mac,
                 ccdr_clocks,
