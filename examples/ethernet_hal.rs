@@ -119,7 +119,7 @@ fn main() -> ! {
             dp.ETHERNET_MAC,
             dp.ETHERNET_MTL,
             dp.ETHERNET_DMA,
-            &mut ETHERNET_DESCRIPTOR_RING,
+            &mut *core::ptr::addr_of_mut!(ETHERNET_DESCRIPTOR_RING),
             mac_addr.clone(),
             ccdr.peripheral.ETH1MAC,
             &ccdr.clocks,
