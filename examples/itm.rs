@@ -15,6 +15,20 @@ use nucleo::loggit;
 use log::{debug, error, info};
 mod utilities;
 
+/// Example that demonstrates Cortex-M ITM (Instrumentation Trace Macrocell) output.
+/// To read ITM output, install the [itm](https://docs.rs/itm/latest/itm/) tool:
+/// ```bash
+/// cargo install itm
+/// ```
+/// - Load the binary to the board
+/// - In one terminal run:
+/// ```bash
+/// openocd -f swo.cfg
+/// ```
+/// - In an other terminal run:
+/// ```bash
+/// itmdump -F -f /tmp/swo-output
+/// ```
 #[entry]
 fn main() -> ! {
     // - board setup ----------------------------------------------------------

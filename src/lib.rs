@@ -3,7 +3,7 @@
 //! Board support crate for STMicroElectronics STM32H7 Nucleo-144 boards
 //!
 //! # Usage - see examples/
-//! ```
+//! 
 
 #![no_std]
 
